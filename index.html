@@ -27,7 +27,7 @@
         .content { flex: 1; overflow-y: auto; padding: 15px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 
         /* Typography & Components */
-        h1, h2, h3 { margin: 0; }
+        h1, h2, h3, h4 { margin: 0; }
         .text-sm { font-size: 0.85rem; color: var(--text-dim); }
         .text-lg { font-size: 1.2rem; font-weight: bold; }
         .money { color: #34d399; font-weight: bold; font-family: monospace; }
@@ -84,6 +84,12 @@
         .modal-box { background: var(--panel); width: 95%; max-width: 500px; max-height: 90vh; overflow-y: auto; border-radius: 12px; border: 1px solid var(--border); position: relative;}
         .player-header-bg { padding: 20px; background: linear-gradient(135deg, #374151, #111827); border-bottom: 1px solid rgba(255,255,255,0.1); }
 
+        /* Bracket View */
+        .bracket-tree { padding: 20px; display: flex; flex-direction: column; gap: 20px; text-align: center; }
+        .bracket-round { margin-bottom: 20px; border-bottom: 1px dashed #444; padding-bottom: 10px; }
+        .bracket-match { background: #111; border: 1px solid #444; padding: 10px; margin: 10px 0; border-radius: 6px; display: flex; justify-content: space-between; }
+        .winner-text { color: var(--gold); font-weight: bold; }
+
         /* Tabs */
         .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 10px; background: var(--bg); position: sticky; top: 0; z-index: 5; }
         .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; font-weight: 500; }
@@ -93,9 +99,14 @@
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th { text-align: left; padding: 8px; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); }
         td { padding: 8px; border-bottom: 1px solid #333; }
+        
+        /* Auto Save Toast */
+        #autosave-toast { position: fixed; bottom: 20px; right: 20px; background: rgba(16, 185, 129, 0.9); color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 100; }
     </style>
 </head>
 <body>
+
+    <div id="autosave-toast">Auto-Saved</div>
 
     <div id="screen-menu" class="screen active">
         <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
@@ -145,10 +156,11 @@
 
         <div class="content" style="padding: 0;">
             <div class="card" style="text-align: center; border-color: var(--primary); margin: 15px;">
-                <div class="text-sm" style="margin-bottom: 5px;">NEXT MATCHUP</div>
+                <div class="text-sm" style="margin-bottom: 5px;">STATUS</div>
                 <h2 id="dash-matchup" style="margin-bottom: 10px;">Vs. Opponent</h2>
                 <div id="dash-record" class="text-lg" style="margin-bottom: 10px; color: var(--text-dim);">0-0</div>
                 <button id="btn-play-game" class="btn btn-primary btn-block" onclick="prepGame()">PLAY GAME</button>
+                <button id="btn-view-bracket-dash" class="btn btn-gold btn-block" style="display:none;" onclick="openDeepBracket()">VIEW PLAYOFF BRACKET</button>
             </div>
 
             <div class="tabs">
@@ -173,7 +185,8 @@
                 </div>
 
                  <div id="bracket-view" style="display:none;">
-                    <h3 style="color:var(--gold); text-align:center;">PLAYOFF BRACKET</h3>
+                    <h3 style="color:var(--gold); text-align:center;">PLAYOFFS ACTIVE</h3>
+                    <button class="btn btn-gold btn-block" onclick="openDeepBracket()">VIEW FULL BRACKET</button>
                     <div id="bracket-container" class="bracket-box" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
                 </div>
                 <div id="dash-standings-list"></div>
@@ -312,6 +325,24 @@
         </div>
     </div>
 
+    <div id="modal-bracket" class="modal" onclick="closeModal(event)">
+        <div class="modal-box" style="padding:20px;">
+            <div class="flex-row">
+                <h3>Playoff Picture</h3>
+                <button class="btn btn-sm btn-dark" onclick="document.getElementById('modal-bracket').style.display='none'">Close</button>
+            </div>
+            <div id="deep-bracket-content" class="bracket-tree"></div>
+        </div>
+    </div>
+
+    <div id="modal-awards" class="modal" onclick="closeModal(event)">
+        <div class="modal-box" style="padding:20px;">
+            <h3>Career Awards</h3>
+            <div id="awards-list-content" style="margin-top:15px; color: var(--gold);"></div>
+            <button class="btn btn-dark btn-block" style="margin-top:20px" onclick="document.getElementById('modal-awards').style.display='none'">Close</button>
+        </div>
+    </div>
+
     <div id="modal-player" class="modal" onclick="closeModal(event)">
         <div class="modal-box" style="padding:0; overflow:hidden;">
             <div id="mp-header" class="player-header-bg">
@@ -340,9 +371,11 @@
                     </div>
                 </div>
                 
-                <div class="card" id="mp-awards-card" style="display:none; padding:10px;">
-                     <div class="text-sm" style="margin-bottom:5px;">Awards</div>
-                     <div id="mp-awards" style="font-size:0.85rem; color:var(--gold);"></div>
+                <div class="card" id="mp-awards-card" style="padding:10px;">
+                     <div class="flex-row">
+                         <div class="text-sm">Total Awards: <span id="mp-award-count" style="color:var(--text); font-weight:bold;">0</span></div>
+                         <button class="btn btn-sm btn-outline" onclick="viewPlayerAwards()">View All</button>
+                     </div>
                 </div>
 
                 <div class="card flex-row" style="justify-content: space-around;">
@@ -401,6 +434,7 @@ const L_NAMES = [
             myTeamId: 0, budget: 120, cap: 120,
             teams: [], players: [], schedule: [],
             playoffBracket: null,
+            phase: 'regular', // regular, playoffs, season_over
             history: [], hallOfFame: [],
             news: [] 
         };
@@ -410,6 +444,8 @@ const L_NAMES = [
             hScore: 0, aScore: 0, time: 720, q: 1,
             boxScore: { home: {}, away: {} }
         };
+
+        let autoSaveInterval = null;
 
         class Player {
             constructor(generatedOvr) {
@@ -447,6 +483,7 @@ const L_NAMES = [
             game.season = 1; game.week = 1; 
             game.day = 1; game.monthIndex = 0; game.year = 2024;
             game.playoffBracket = null;
+            game.phase = 'regular';
             game.cap = 135;
             game.history = []; game.hallOfFame = []; game.news = [];
             
@@ -464,6 +501,10 @@ const L_NAMES = [
                 grid.appendChild(div);
             });
             showScreen('team-select');
+            
+            // Start Auto Save
+            if(autoSaveInterval) clearInterval(autoSaveInterval);
+            autoSaveInterval = setInterval(() => saveGame(false), 10000); // 10s auto save
         }
 
         // --- DRAFT ---
@@ -472,9 +513,15 @@ const L_NAMES = [
             const committedSalary = myTeam.roster.reduce((sum, p) => sum + p.salary, 0);
             game.budget = game.cap - committedSalary;
             
-            const availableCount = game.players.filter(p => p.teamId === null && !p.retired).length;
-            if(availableCount < 10) for(let i=0; i<20; i++) game.players.push(new Player());
+            // Ensure at least 8 draft options
+            let draftPool = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked);
+            while(draftPool.length < 8) {
+                const p = new Player();
+                game.players.push(p);
+                draftPool.push(p);
+            }
 
+            // CPU fills first
             game.teams.forEach(t => {
                 if(t.id !== game.myTeamId) {
                     while(t.roster.length < 5) {
@@ -543,21 +590,19 @@ const L_NAMES = [
         function autoDraft() {
             const myTeam = game.teams[game.myTeamId];
             while(myTeam.roster.length < 5) {
-                if(game.budget < 2) {
-                    let scrub = new Player(60); scrub.salary = 1; scrub.teamId = game.myTeamId; scrub.contractYears = 1;
-                    game.players.push(scrub); myTeam.roster.push(scrub); game.budget -= 1;
+                // Ensure players exist if ran out
+                const available = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked && p.salary <= game.budget).sort((a,b) => b.ovr - a.ovr);
+                
+                if(available.length === 0) {
+                     // Emergency generator
+                     let scrub = new Player(60); scrub.salary = 1; scrub.teamId = game.myTeamId; scrub.contractYears = 1;
+                     game.players.push(scrub); myTeam.roster.push(scrub); game.budget -= 1;
                 } else {
-                    const available = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked && p.salary <= game.budget).sort((a,b) => b.ovr - a.ovr);
-                    if(available.length === 0) {
-                         let scrub = new Player(60); scrub.salary = 1; scrub.teamId = game.myTeamId; scrub.contractYears = 1;
-                         game.players.push(scrub); myTeam.roster.push(scrub); game.budget -= 1;
-                    } else {
-                        const p = available[0];
-                        game.budget -= p.salary;
-                        p.teamId = game.myTeamId;
-                        p.contractYears = 1;
-                        myTeam.roster.push(p);
-                    }
+                    const p = available[0];
+                    game.budget -= p.salary;
+                    p.teamId = game.myTeamId;
+                    p.contractYears = 1;
+                    myTeam.roster.push(p);
                 }
             }
             startSeason();
@@ -573,9 +618,7 @@ const L_NAMES = [
                     game.monthIndex = 0;
                 }
             }
-            const cutoff = Date.now() - (1000 * 60 * 5); 
             if(game.news.length > 30) game.news = game.news.slice(0, 30);
-            
             if(Math.random() < 0.4) generateRandomNews();
         }
 
@@ -584,6 +627,7 @@ const L_NAMES = [
         }
 
         function startSeason() {
+            game.phase = 'regular';
             generateSchedule();
             aiFillRosters();
             updateDashboard();
@@ -612,7 +656,7 @@ const L_NAMES = [
                     bestFA.contractYears = 1;
                     t.roster.push(bestFA);
 
-                    addNews("NewSignings", `${t.name} signed ${bestFA.name} (${bestFA.ovr}) and waived ${worstPlayer.name}.`, "TransactionNews", true);
+                    addNews("Transaction", `${t.name} signed ${bestFA.name} (${bestFA.ovr}) and waived ${worstPlayer.name}.`, "WojESPN", true);
                 }
             });
         }
@@ -627,6 +671,13 @@ const L_NAMES = [
                         p.contractYears = 1;
                         t.roster.push(p);
                         addNews("Transaction Wire", `${t.name} have signed free agent ${p.name}.`, "League", false);
+                    } else {
+                        // Create emergency player if no FA
+                        let p = new Player(70);
+                        p.teamId = t.id;
+                        p.contractYears = 1;
+                        game.players.push(p);
+                        t.roster.push(p);
                     }
                 }
             });
@@ -673,8 +724,8 @@ const L_NAMES = [
 
         function generateRandomNews() {
             const topics = [
-                { auth: "Hoops Stuff", hand: "hoopsimpson", ver: true, texts: ["Sources: Salary cap expected to rise next season.", "Trade talks are heating up across the league.", "Scouts are calling next year's draft class 'generational'."] },
-                { auth: "Han", hand: "basketballinsidernamedhan", ver: true, texts: ["Players meeting scheduled to discuss league rules.", "Several teams looking to add veteran presence before playoffs."] },
+                { auth: "Woj", hand: "wojespn", ver: true, texts: ["Sources: Salary cap expected to rise next season.", "Trade talks are heating up across the league.", "Scouts are calling next year's draft class 'generational'."] },
+                { auth: "Shams", hand: "shamschar", ver: true, texts: ["Players meeting scheduled to discuss league rules.", "Several teams looking to add veteran presence before playoffs."] },
                 { auth: "HoopsHype", hand: "hoopshype", ver: false, texts: ["Top 5 dunks of the week! 🎬", "Who is your MVP so far?"] },
                 { auth: "Random Fan", hand: "fan123", ver: false, texts: ["My team needs to fire the coach ASAP.", "Refs are blind this year lol.", "Just bought courtside tickets!"] }
             ];
@@ -686,7 +737,7 @@ const L_NAMES = [
 
         function generateSocialReaction(type, data) {
             const fans = ["HoopFan23", "BallIsLife", "CourtSide", "NetRipper", "DunkMaster"];
-            const verifieds = ["3SPN", "DailyHoops", "StandsReport"];
+            const verifieds = ["3SPN", "TheDailyDribble", "BleacherReport"];
             
             if(type === 'big_game') {
                 const phrases = [
@@ -697,13 +748,6 @@ const L_NAMES = [
                 ];
                 const text = `${data.name} ${phrases[Math.floor(Math.random()*phrases.length)]}`;
                 addNews("HoopFan", text, fans[Math.floor(Math.random()*fans.length)], false, data.id);
-                
-                if(Math.random() > 0.5) {
-                    addNews(data.name, `Great team win tonight! We keep building. 💪`, data.name.replace(' ','').toLowerCase(), true, data.id);
-                }
-
-            } else if (type === 'upset') {
-                addNews("3SPN", `UPSET ALERT: ${data.winner} takes down ${data.loser}! No one saw this coming.`, "3SPN", true);
             } else if (type === 'award') {
                 const pName = data.name;
                 const award = data.award;
@@ -720,12 +764,30 @@ const L_NAMES = [
             document.getElementById('dash-date').innerText = getFormattedDate();
             document.getElementById('dash-record').innerText = `${t.wins} - ${t.losses}`;
 
+            const playBtn = document.getElementById('btn-play-game');
+            const bracketBtn = document.getElementById('btn-view-bracket-dash');
+            
+            // Check State
+            if(game.phase === 'season_over') {
+                playBtn.innerText = "ADVANCE TO OFFSEASON";
+                playBtn.onclick = endSeason;
+                playBtn.classList.remove('btn-primary'); playBtn.classList.add('btn-accent');
+                bracketBtn.style.display = 'block';
+                document.getElementById('bracket-view').style.display = 'block';
+                document.getElementById('dash-matchup').innerText = "SEASON COMPLETE";
+                return;
+            } else {
+                playBtn.classList.add('btn-primary'); playBtn.classList.remove('btn-accent');
+                bracketBtn.style.display = 'none';
+            }
+
             const isPlayoffs = game.week > 12;
 
             if(t.roster.length < 5) {
-                document.getElementById('btn-play-game').innerText = "ROSTER INCOMPLETE";
-                document.getElementById('btn-play-game').onclick = () => alert("You need 5 players! Use the 'Sign Free Agent' button in the Roster tab.");
+                playBtn.innerText = "ROSTER INCOMPLETE";
+                playBtn.onclick = () => alert("You need 5 players! Use the 'Sign Free Agent' button in the Roster tab.");
             } else if(isPlayoffs) {
+                game.phase = 'playoffs';
                 if(!game.playoffBracket) initPlayoffs();
                 document.getElementById('tab-standings').style.display = 'none'; 
                 document.getElementById('bracket-view').style.display = 'block';
@@ -734,75 +796,47 @@ const L_NAMES = [
                 const oppId = getPlayoffOpponent();
                 if(oppId !== null) {
                     document.getElementById('dash-matchup').innerText = `PLAYOFFS VS ${game.teams[oppId].name}`;
-                    document.getElementById('btn-play-game').innerText = "PLAY GAME";
-                    document.getElementById('btn-play-game').onclick = prepGame;
+                    playBtn.innerText = "PLAY GAME";
+                    playBtn.onclick = prepGame;
                 } else {
                     document.getElementById('dash-matchup').innerText = "Eliminated";
-                    document.getElementById('btn-play-game').innerText = "Simulate Playoffs";
-                    document.getElementById('btn-play-game').onclick = simFullPlayoffs;
+                    playBtn.innerText = "Simulate Playoffs";
+                    playBtn.onclick = simFullPlayoffs;
                 }
             } else {
+                game.phase = 'regular';
                 document.getElementById('bracket-view').style.display = 'none';
-                // SAFETY CHECK FOR SCHEDULE
                 let oppId = game.schedule[game.week-1];
-                if(oppId === undefined) {
-                    // Regenerate schedule if lost/corrupt
-                    generateSchedule();
-                    oppId = game.schedule[game.week-1];
-                }
+                if(oppId === undefined) { generateSchedule(); oppId = game.schedule[game.week-1]; }
                 
                 if(game.teams[oppId]) {
                     document.getElementById('dash-matchup').innerText = `vs ${game.teams[oppId].name}`;
-                    document.getElementById('btn-play-game').innerText = "PLAY GAME";
-                    document.getElementById('btn-play-game').onclick = prepGame;
-                } else {
-                     document.getElementById('dash-matchup').innerText = "Season Complete";
-                     document.getElementById('btn-play-game').innerText = "Wait for Playoffs";
+                    playBtn.innerText = "PLAY GAME";
+                    playBtn.onclick = prepGame;
                 }
             }
 
             // Roster Table - SORTED BY PPG
             const tbody = document.getElementById('dash-roster-table');
             tbody.innerHTML = `<thead><tr><th>Name</th><th>PPG</th><th>FG%</th><th>OVR</th></tr></thead><tbody></tbody>`;
-            
             let sortedRoster = [...t.roster].sort((a,b) => {
                 let ppgA = a.stats.gp > 0 ? a.stats.pts / a.stats.gp : 0;
                 let ppgB = b.stats.gp > 0 ? b.stats.pts / b.stats.gp : 0;
                 return ppgB - ppgA;
             });
-
             sortedRoster.forEach(p => {
                 let badge = p.ovr >= 90 ? 'ovr-90' : (p.ovr >= 80 ? 'ovr-80' : 'ovr-60');
                 let fgPct = p.stats.fga > 0 ? ((p.stats.fgm / p.stats.fga) * 100).toFixed(1) + '%' : '-';
                 let ppg = p.stats.gp > 0 ? (p.stats.pts/p.stats.gp).toFixed(1) : "0.0";
-                
-                tbody.querySelector('tbody').innerHTML += `
-                    <tr>
-                        <td><span class="player-link" style="color:var(--primary);font-weight:bold" onclick="showPlayer('${p.id}')">${p.name}</span></td>
-                        <td style="font-weight:bold">${ppg}</td>
-                        <td>${fgPct}</td>
-                        <td><span class="ovr-badge ${badge}">${p.ovr}</span></td>
-                    </tr>
-                `;
+                tbody.querySelector('tbody').innerHTML += `<tr><td><span class="player-link" style="color:var(--primary);font-weight:bold" onclick="showPlayer('${p.id}')">${p.name}</span></td><td style="font-weight:bold">${ppg}</td><td>${fgPct}</td><td><span class="ovr-badge ${badge}">${p.ovr}</span></td></tr>`;
             });
 
-            // Standings
+            // Standings & Leaders
             const sorted = [...game.teams].sort((a,b) => b.wins - a.wins);
-            document.getElementById('dash-standings-list').innerHTML = sorted.map((team, i) => `
-                <div class="flex-row" style="padding:10px; border-bottom:1px solid #333; ${team.id === game.myTeamId ? 'background:rgba(99, 102, 241, 0.1)':''}">
-                    <span>${i+1}. ${team.name}</span>
-                    <span style="font-weight:bold">${team.wins}-${team.losses}</span>
-                </div>
-            `).join('');
+            document.getElementById('dash-standings-list').innerHTML = sorted.map((team, i) => `<div class="flex-row" style="padding:10px; border-bottom:1px solid #333; ${team.id === game.myTeamId ? 'background:rgba(99, 102, 241, 0.1)':''}"><span>${i+1}. ${team.name}</span><span style="font-weight:bold">${team.wins}-${team.losses}</span></div>`).join('');
 
-            // Leaders
             const leaders = game.players.filter(p => p.stats.gp > 0 && !p.retired).sort((a,b) => (b.stats.pts/b.stats.gp) - (a.stats.pts/a.stats.gp)).slice(0, 5);
-            document.getElementById('dash-leaders-list').innerHTML = leaders.map(p => `
-                <div class="flex-row" style="padding:10px; border-bottom:1px solid #333;">
-                    <span class="player-link" style="color:var(--primary)" onclick="showPlayer('${p.id}')">${p.name} (${p.teamId!=null ? game.teams[p.teamId].name.split(' ')[0] : 'FA'})</span>
-                    <span style="font-weight:bold">${(p.stats.pts/p.stats.gp).toFixed(1)} PPG</span>
-                </div>
-            `).join('');
+            document.getElementById('dash-leaders-list').innerHTML = leaders.map(p => `<div class="flex-row" style="padding:10px; border-bottom:1px solid #333;"><span class="player-link" style="color:var(--primary)" onclick="showPlayer('${p.id}')">${p.name} (${p.teamId!=null ? game.teams[p.teamId].name.split(' ')[0] : 'FA'})</span><span style="font-weight:bold">${(p.stats.pts/p.stats.gp).toFixed(1)} PPG</span></div>`).join('');
             
             updateNewsFeed();
         }
@@ -810,11 +844,9 @@ const L_NAMES = [
         // --- GAMEPLAY ---
         function prepGame() {
             advanceDate(3);
-            
-            // 1. CHECK FOR SCHEDULE GLITCH
             if(!game.schedule || game.schedule.length === 0) generateSchedule();
             
-            // 2. SIM CPU
+            // SIM CPU
             game.teams.forEach(t => {
                 if(t.id !== game.myTeamId && game.week <= 12) {
                     if(Math.random() > 0.5) t.wins++; else t.losses++;
@@ -827,47 +859,19 @@ const L_NAMES = [
                     });
                 }
             });
-
             cpuMarketMoves();
 
-            let oppId;
-            if(game.week <= 12) {
-                // SAFETY: Ensure week matches array index
-                if(game.week > game.schedule.length) game.week = game.schedule.length;
-                oppId = game.schedule[game.week-1];
-            } else {
-                oppId = getPlayoffOpponent();
-            }
+            let oppId = (game.week <= 12) ? game.schedule[game.week-1] : getPlayoffOpponent();
+            if(oppId === undefined || oppId === null) { generateSchedule(); oppId = game.schedule[0]; game.week = 1; }
 
-            if(oppId === undefined || oppId === null) {
-                alert("Sim Error: No Opponent Found. Rescheduling...");
-                generateSchedule();
-                oppId = game.schedule[0]; 
-                game.week = 1;
-            }
-
-            // SAFETY: Check roster size before starting
             const enemy = game.teams[oppId];
             if(enemy.roster.length < 5) {
-                // Emergency fill for enemy
                  while(enemy.roster.length < 5) {
-                    let p = new Player(70);
-                    p.teamId = oppId;
-                    enemy.roster.push(p);
-                    game.players.push(p);
+                    let p = new Player(70); p.teamId = oppId; enemy.roster.push(p); game.players.push(p);
                  }
             }
 
-            sim = {
-                timer: null, speed: 800,
-                home: game.teams[game.myTeamId], 
-                away: enemy,
-                hScore: 0, aScore: 0,
-                time: 720, q: 1,
-                boxScore: { home: {}, away: {} }
-            };
-
-            // Init Box Score Entries
+            sim = { timer: null, speed: 800, home: game.teams[game.myTeamId], away: enemy, hScore: 0, aScore: 0, time: 720, q: 1, boxScore: { home: {}, away: {} } };
             [...sim.home.roster, ...sim.away.roster].forEach(p => {
                 const key = sim.home.roster.includes(p) ? 'home' : 'away';
                 sim.boxScore[key][p.id] = { name: p.name, pts: 0, reb: 0, ast: 0, id: p.id };
@@ -893,12 +897,7 @@ const L_NAMES = [
                 const defTeam = isHomePos ? sim.away : sim.home;
                 const boxKey = isHomePos ? 'home' : 'away';
 
-                // SAFETY: Ensure rosters exist
-                if(!attTeam.roster[0] || !defTeam.roster[0]) {
-                    // If crash here, end game early
-                    endGame();
-                    return;
-                }
+                if(!attTeam.roster[0] || !defTeam.roster[0]) { endGame(); return; }
 
                 const shooter = attTeam.roster[Math.floor(Math.random()*attTeam.roster.length)];
                 const defender = defTeam.roster[Math.floor(Math.random()*defTeam.roster.length)];
@@ -969,7 +968,6 @@ const L_NAMES = [
                     if(p) { 
                         p.stats.gp++; p.stats.pts += s.pts; p.stats.reb += s.reb; p.stats.ast += s.ast; 
                         if(s.pts > p.careerHigh) p.careerHigh = s.pts; 
-                        
                         if(s.pts >= 25) {
                             let fgPct = p.stats.fga>0 ? Math.floor((p.stats.fgm/p.stats.fga)*100)+'%' : '50%';
                             generateSocialReaction('big_game', {name: p.name, pts: s.pts, fg: fgPct, id: p.id});
@@ -981,7 +979,6 @@ const L_NAMES = [
             processStats('away', sim.away);
 
             if(game.week > 12) handlePlayoffResult(win);
-            
             showBoxScore();
         }
 
@@ -990,7 +987,6 @@ const L_NAMES = [
             document.getElementById('box-h-score').innerText = sim.hScore;
             document.getElementById('box-a-name').innerText = sim.away.name;
             document.getElementById('box-a-score').innerText = sim.aScore;
-            
             const fillTable = (id, data) => {
                 const t = document.getElementById(id).querySelector('tbody');
                 t.innerHTML = '';
@@ -1004,7 +1000,7 @@ const L_NAMES = [
         }
 
         function closeBoxScore() {
-            game.week++;
+            if(game.phase !== 'season_over') game.week++;
             updateDashboard();
             showScreen('dashboard');
         }
@@ -1015,10 +1011,7 @@ const L_NAMES = [
             const sorted = [...game.teams].sort((a,b) => b.wins - a.wins).slice(0, 4);
             game.playoffBracket = {
                 round: 1,
-                matchups: [
-                    { t1: sorted[0], t2: sorted[3], winner: null },
-                    { t1: sorted[1], t2: sorted[2], winner: null }
-                ],
+                matchups: [ { t1: sorted[0], t2: sorted[3], winner: null }, { t1: sorted[1], t2: sorted[2], winner: null } ],
                 finals: { t1: null, t2: null, winner: null }
             };
         }
@@ -1045,6 +1038,49 @@ const L_NAMES = [
                 let w2 = pb.finals.winner && pb.finals.winner.id === pb.finals.t2.id ? 'winner-text' : '';
                 container.innerHTML += `<div style="text-align:center;color:var(--primary);margin-top:10px;">FINALS</div><div class="matchup-card" style="border-color:var(--gold)"><div class="${w1}">${pb.finals.t1.name}</div><div class="${w2}">${pb.finals.t2.name}</div></div>`;
             }
+        }
+
+        // NEW: IN DEPTH BRACKET
+        function openDeepBracket() {
+            if(!game.playoffBracket) return;
+            const pb = game.playoffBracket;
+            const container = document.getElementById('deep-bracket-content');
+            container.innerHTML = '';
+
+            const createMatchDiv = (t1, t2, winner) => {
+                let w1 = winner && winner.id === t1.id ? 'winner-text' : '';
+                let w2 = winner && winner.id === t2.id ? 'winner-text' : '';
+                return `
+                <div class="bracket-match">
+                    <div style="text-align:left;">
+                        <div class="${w1}">${t1.name} <span class="text-sm">(${t1.wins}-${t1.losses})</span></div>
+                        <div class="${w2}">${t2.name} <span class="text-sm">(${t2.wins}-${t2.losses})</span></div>
+                    </div>
+                    <div style="display:flex;align-items:center;">
+                        ${winner ? '<span style="color:var(--gold)">✔</span>' : '<span class="text-sm">Vs</span>'}
+                    </div>
+                </div>`;
+            };
+
+            let round1HTML = '<div class="bracket-round"><h4>Semifinals</h4>';
+            pb.matchups.forEach(m => {
+                round1HTML += createMatchDiv(m.t1, m.t2, m.winner);
+            });
+            round1HTML += '</div>';
+
+            let round2HTML = '';
+            if(pb.finals.t1) {
+                round2HTML = '<div class="bracket-round"><h4>THE FINALS</h4>';
+                round2HTML += createMatchDiv(pb.finals.t1, pb.finals.t2, pb.finals.winner);
+                round2HTML += '</div>';
+            }
+
+            if(pb.finals.winner) {
+                 round2HTML += `<div style="margin-top:20px; text-align:center;"><h3>🏆 CHAMPION: <span style="color:var(--gold)">${pb.finals.winner.name}</span></h3></div>`;
+            }
+
+            container.innerHTML = round1HTML + round2HTML;
+            document.getElementById('modal-bracket').style.display = 'flex';
         }
 
         function getPlayoffOpponent() {
@@ -1098,7 +1134,7 @@ const L_NAMES = [
                 }
                 
                 addNews("3SPN", `THE ${winner.name.toUpperCase()} ARE YOUR S${game.season} CHAMPIONS! 🏆`, "3SPN", true);
-                setTimeout(endSeason, 1500);
+                game.phase = 'season_over';
             }
         }
 
@@ -1112,19 +1148,17 @@ const L_NAMES = [
             
             winner.roster.forEach(p => p.awards.push(`S${game.season} Champ`));
             
-            // FMVP sim
             const fmvp = winner.roster[Math.floor(Math.random()*winner.roster.length)];
             fmvp.awards.push(`S${game.season} FMVP`);
-            generateSocialReaction('award', {name: fmvp.name, award: "Finals MVP", id: fmvp.id});
-
-            if(winner.id === game.myTeamId) {
-                game.history.push({ season: game.season, result: "Champion", record: `${winner.wins}-${winner.losses}` });
-            } else {
+            
+            if(winner.id === game.myTeamId) game.history.push({ season: game.season, result: "Champion", record: `${winner.wins}-${winner.losses}` });
+            else {
                 const myTeam = game.teams[game.myTeamId];
                 game.history.push({ season: game.season, result: "Lost", record: `${myTeam.wins}-${myTeam.losses}` });
             }
             addNews("3SPN", `The ${winner.name} win the title!`, "3SPN", true);
-            endSeason();
+            game.phase = 'season_over';
+            updateDashboard();
         }
 
         // --- END SEASON ---
@@ -1145,7 +1179,6 @@ const L_NAMES = [
                 }
                 p.stats = { gp:0, pts:0, reb:0, ast:0, fga:0, fgm:0 };
                 if(p.ovr > p.primeOvr) p.primeOvr = p.ovr;
-                
                 p.isLocked = false; 
 
                 // Aging & Retirement
@@ -1155,10 +1188,8 @@ const L_NAMES = [
                 else if(p.age === 39 && Math.random() < 0.90) retired = true;
                 else if(p.age >= 35 && Math.random() < 0.35) retired = true; 
 
-                if(retired) {
-                    p.retired = true;
-                    p.teamId = null;
-                } else {
+                if(retired) { p.retired = true; p.teamId = null; } 
+                else {
                     if(p.age > 30) p.ovr -= Math.floor(Math.random()*3);
                     else if(p.age < 27) p.ovr += Math.floor(Math.random()*3)+1;
                     p.ovr = Math.min(99, Math.max(50, p.ovr));
@@ -1176,6 +1207,7 @@ const L_NAMES = [
             game.year++; 
             game.week = 1;
             game.playoffBracket = null;
+            game.phase = 'regular';
             game.cap = 135 + (game.season * 5); 
             addNews("League", `Season ${game.season} has officially begun!`, "Official", true);
             startResignPhase();
@@ -1240,6 +1272,16 @@ const L_NAMES = [
 
         // --- FREE AGENCY (MID SEASON) ---
         function openFreeAgency() {
+            // Populate if empty (User Request: Always at least 3)
+            let vets = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked && p.age > 20).sort((a,b)=>b.ovr - a.ovr);
+            while(vets.length < 3) {
+                const p = new Player(Math.floor(Math.random()*15)+65);
+                p.age = Math.floor(Math.random()*10)+24;
+                game.players.push(p);
+                vets.push(p);
+            }
+            vets = vets.sort((a,b)=>b.ovr - a.ovr);
+
             const modal = document.getElementById('modal-fa');
             modal.style.display = 'flex';
             
@@ -1249,22 +1291,15 @@ const L_NAMES = [
                 cutSel.innerHTML += `<option value="${p.id}">${p.name} (${p.ovr} OVR) - $${p.salary}M</option>`;
             });
 
-            const vets = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked && p.age > 20).sort((a,b)=>b.ovr - a.ovr);
             const list = document.getElementById('fa-list');
             list.innerHTML = '';
-            
-            if(vets.length === 0) list.innerHTML = '<div style="padding:10px;text-align:center">No Veterans Available</div>';
-
             vets.forEach(p => {
                 const div = document.createElement('div');
                 div.style.padding = '8px';
                 div.style.borderBottom = '1px solid #333';
                 div.style.display = 'flex';
                 div.style.justifyContent = 'space-between';
-                div.innerHTML = `
-                    <div>${p.name} (${p.ovr} OVR)</div>
-                    <button class="btn btn-primary btn-sm" onclick="signFreeAgent('${p.id}', ${p.salary})">Sign ($${p.salary}M)</button>
-                `;
+                div.innerHTML = `<div>${p.name} (${p.ovr} OVR)</div><button class="btn btn-primary btn-sm" onclick="signFreeAgent('${p.id}', ${p.salary})">Sign ($${p.salary}M)</button>`;
                 list.appendChild(div);
             });
 
@@ -1273,11 +1308,7 @@ const L_NAMES = [
                 const myTeam = game.teams[game.myTeamId];
                 const currentSalary = myTeam.roster.reduce((a,b)=>a+b.salary,0);
                 let capSpace = game.cap - currentSalary;
-                
-                if(cutId) {
-                    const p = game.players.find(x=>x.id===cutId);
-                    capSpace += p.salary;
-                }
+                if(cutId) { const p = game.players.find(x=>x.id===cutId); capSpace += p.salary; }
                 const disp = document.getElementById('fa-cap-display');
                 disp.innerText = `$${capSpace}M`;
                 if(capSpace<0) disp.classList.add('neg'); else disp.classList.remove('neg');
@@ -1291,20 +1322,15 @@ const L_NAMES = [
             
             const myTeam = game.teams[game.myTeamId];
             const cutPlayer = game.players.find(x=>x.id===cutId);
-            
             const currentSalary = myTeam.roster.reduce((a,b)=>a+b.salary,0);
             const capSpaceAfterCut = (game.cap - currentSalary) + cutPlayer.salary;
             
             if(salary > capSpaceAfterCut) { alert("Not enough cap space!"); return; }
 
-            cutPlayer.teamId = null;
-            cutPlayer.contractYears = 0;
-            cutPlayer.isLocked = true; 
+            cutPlayer.teamId = null; cutPlayer.contractYears = 0; cutPlayer.isLocked = true; 
             myTeam.roster = myTeam.roster.filter(p => p.id !== cutId);
-            
             const signPlayer = game.players.find(x=>x.id === signId);
-            signPlayer.teamId = game.myTeamId;
-            signPlayer.contractYears = 1;
+            signPlayer.teamId = game.myTeamId; signPlayer.contractYears = 1;
             myTeam.roster.push(signPlayer);
 
             addNews("Transaction", `You signed ${signPlayer.name} and released ${cutPlayer.name}.`, "FrontOffice", false);
@@ -1317,29 +1343,18 @@ const L_NAMES = [
             const query = document.getElementById('league-search').value.toLowerCase();
             const resultBox = document.getElementById('search-results');
             resultBox.innerHTML = '';
-
-            if(query.length < 2) {
-                resultBox.style.display = 'none';
-                return;
-            }
-
+            if(query.length < 2) { resultBox.style.display = 'none'; return; }
             const hits = game.players.filter(p => p.name.toLowerCase().includes(query) && !p.retired);
-            
             if(hits.length === 0) {
                 resultBox.innerHTML = '<div style="padding:10px; color:#666">No players found</div>';
-                resultBox.style.display = 'block';
-                return;
+                resultBox.style.display = 'block'; return;
             }
-
             hits.forEach(p => {
                 let tName = p.teamId !== null ? game.teams[p.teamId].name : "Free Agent";
                 if(p.isLocked) tName += " (Locked)";
                 const div = document.createElement('div');
                 div.className = 'search-item';
-                div.innerHTML = `
-                    <div><span style="font-weight:bold; color:var(--text)">${p.name}</span> <span class="text-sm">(${tName})</span></div>
-                    <div class="ovr-badge ${p.ovr >= 80 ? 'ovr-80' : 'ovr-60'}">${p.ovr}</div>
-                `;
+                div.innerHTML = `<div><span style="font-weight:bold; color:var(--text)">${p.name}</span> <span class="text-sm">(${tName})</span></div><div class="ovr-badge ${p.ovr >= 80 ? 'ovr-80' : 'ovr-60'}">${p.ovr}</div>`;
                 div.onclick = () => { showPlayer(p.id); resultBox.style.display = 'none'; };
                 resultBox.appendChild(div);
             });
@@ -1352,13 +1367,10 @@ const L_NAMES = [
             let totalW = 0, totalL = 0;
             game.history.forEach(h => {
                 let parts = h.record.split('-');
-                totalW += parseInt(parts[0]);
-                totalL += parseInt(parts[1]);
+                totalW += parseInt(parts[0]); totalL += parseInt(parts[1]);
             });
-            
             document.getElementById('hist-rings').innerText = rings;
             document.getElementById('hist-record').innerText = `${totalW}-${totalL}`;
-
             const hofDiv = document.getElementById('hof-list');
             hofDiv.innerHTML = '';
             if(game.hallOfFame.length === 0) {
@@ -1367,36 +1379,25 @@ const L_NAMES = [
                 game.hallOfFame.forEach(id => {
                     const p = game.players.find(x => x.id === id);
                     if(p) {
-                         hofDiv.innerHTML += `
-                            <div class="flex-row" style="padding:5px 0; border-bottom:1px solid #333;">
-                                <div><span class="player-link" style="color:var(--gold)" onclick="showPlayer('${p.id}')">${p.name}</span><div class="text-sm">Ovr ${p.ovr}</div></div>
-                                <span class="text-sm">Prime: ${p.primeOvr}</span>
-                            </div>
-                         `;
+                         hofDiv.innerHTML += `<div class="flex-row" style="padding:5px 0; border-bottom:1px solid #333;"><div><span class="player-link" style="color:var(--gold)" onclick="showPlayer('${p.id}')">${p.name}</span><div class="text-sm">Ovr ${p.ovr}</div></div><span class="text-sm">Prime: ${p.primeOvr}</span></div>`;
                     }
                 });
             }
-
             const tbody = document.getElementById('hist-table').querySelector('tbody');
             tbody.innerHTML = '';
             game.history.forEach(h => {
                 tbody.innerHTML += `<tr><td>S${h.season}</td><td style="color:${h.result==='Champion'?'var(--gold)':'var(--text)'}">${h.result}</td><td>${h.record}</td></tr>`;
             });
-
             showScreen('history');
         }
 
         function openActiveInduction() {
             const list = document.getElementById('hof-active-list');
             list.innerHTML = '';
-            const myRoster = game.teams[game.myTeamId].roster;
-            
-            myRoster.forEach(p => {
+            game.teams[game.myTeamId].roster.forEach(p => {
                 if(!game.hallOfFame.includes(p.id)) {
                     const div = document.createElement('div');
-                    div.style.padding = '8px';
-                    div.style.borderBottom = '1px solid #333';
-                    div.style.display='flex'; div.style.justifyContent='space-between';
+                    div.style.padding = '8px'; div.style.borderBottom = '1px solid #333'; div.style.display='flex'; div.style.justifyContent='space-between';
                     div.innerHTML = `<span>${p.name}</span> <button class="btn btn-gold btn-sm" onclick="inductActive('${p.id}')">Induct</button>`;
                     list.appendChild(div);
                 }
@@ -1426,7 +1427,7 @@ const L_NAMES = [
                 header.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
             } else {
                 let status = "Free Agent";
-                if(p.isLocked) status += " (Waiting for next season)";
+                if(p.isLocked) status += " (Waiting)";
                 document.getElementById('mp-team').innerText = status;
                 header.style.background = `linear-gradient(135deg, #374151, #111827)`;
             }
@@ -1446,13 +1447,9 @@ const L_NAMES = [
             let fg = p.stats.fga ? Math.floor((p.stats.fgm/p.stats.fga)*100) : 0;
             document.getElementById('mp-fg').innerText = fg + "%";
 
-            if(p.awards.length > 0) {
-                document.getElementById('mp-awards-card').style.display = 'block';
-                document.getElementById('mp-awards').innerHTML = p.awards.map(a => `<span style="display:block; margin-bottom:2px;">🏆 ${a}</span>`).join('');
-            } else {
-                document.getElementById('mp-awards-card').style.display = 'none';
-            }
-
+            // UPDATED AWARDS LOGIC
+            document.getElementById('mp-award-count').innerText = p.awards.length;
+            
             const statBody = document.getElementById('mp-stats-table').querySelector('tbody');
             statBody.innerHTML = '';
             if(p.history.length === 0) {
@@ -1464,6 +1461,15 @@ const L_NAMES = [
             }
 
             document.getElementById('modal-player').style.display = 'flex';
+        }
+
+        function viewPlayerAwards() {
+            if(!currentPlayerId) return;
+            const p = game.players.find(x => x.id === currentPlayerId);
+            const content = document.getElementById('awards-list-content');
+            if(p.awards.length === 0) content.innerHTML = '<div style="color:#aaa; text-align:center;">No Awards Won</div>';
+            else content.innerHTML = p.awards.map(a => `<div>🏆 ${a}</div>`).join('');
+            document.getElementById('modal-awards').style.display = 'flex';
         }
 
         function closeModal(e) { if(e.target.className === 'modal') e.target.style.display = 'none'; }
@@ -1481,50 +1487,42 @@ const L_NAMES = [
 
         // --- SAVE/LOAD & RESET ---
         function saveGame(alertUser) { 
-            localStorage.setItem('hoopsim_v3', JSON.stringify(game)); 
+            localStorage.setItem('hoopsim_v3_ultimate', JSON.stringify(game)); 
             if(alertUser) alert("Game Saved Successfully");
+            else {
+                const toast = document.getElementById('autosave-toast');
+                toast.style.opacity = '1';
+                setTimeout(() => toast.style.opacity = '0', 2000);
+            }
         }
         
         function resetData() {
             if(confirm("Are you sure? This will delete your career permanently.")) {
-                localStorage.removeItem('hoopsim_v3');
+                localStorage.removeItem('hoopsim_v3_ultimate');
                 location.reload();
             }
         }
 
         function loadGame() {
-            const data = localStorage.getItem('hoopsim_v3');
+            const data = localStorage.getItem('hoopsim_v3_ultimate');
             if(!data) { 
                 document.getElementById('load-msg').innerText = "No save found!";
                 setTimeout(()=>document.getElementById('load-msg').innerText="", 2000);
                 return; 
             }
-            
             try {
                 const parsed = JSON.parse(data);
-                
-                // 1. Restore Game Properties
                 Object.assign(game, parsed);
-                
-                // 2. Re-Instantiate Players
                 game.players = parsed.players.map(pData => {
-                    let p = new Player(); 
-                    Object.assign(p, pData); 
-                    return p;
+                    let p = new Player(); Object.assign(p, pData); return p;
                 });
-
-                // 3. Re-Connect Teams
-                // IMPORTANT: We must ignore the parsed roster arrays and rebuild them from IDs
-                // because the parsed rosters are just copies, not references.
-                game.teams.forEach(t => {
-                    t.roster = game.players.filter(p => p.teamId === t.id);
-                });
-
-                // 4. Schedule Repair (Fixes Freeze)
-                if(!game.schedule || game.schedule.length < 12) {
-                    generateSchedule();
-                }
-
+                game.teams.forEach(t => { t.roster = game.players.filter(p => p.teamId === t.id); });
+                
+                // Ensure autosave starts
+                if(autoSaveInterval) clearInterval(autoSaveInterval);
+                autoSaveInterval = setInterval(() => saveGame(false), 10000);
+                
+                if(!game.schedule || game.schedule.length < 12) generateSchedule();
                 updateDashboard();
                 showScreen('dashboard');
             } catch(e) {
