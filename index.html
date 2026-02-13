@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HoopSim</title>
+    <style>
+        :root {
+            --bg: #111827;
+            --panel: #1f2937;
+            --primary: #6366f1;
+            --accent: #f43f5e;
+            --gold: #fbbf24;
+            --text: #f3f4f6;
+            --text-dim: #9ca3af;
+            --border: #374151;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --verify: #3b82f6;
+        }
+
+        body { background: var(--bg); color: var(--text); font-family: var(--font); margin: 0; overflow: hidden; height: 100vh; }
+        
+        /* Layout */
+        .screen { display: none; flex-direction: column; height: 100vh; width: 100%; }
+        .screen.active { display: flex; }
+        .header { padding: 15px; background: rgba(31, 41, 55, 0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .content { flex: 1; overflow-y: auto; padding: 15px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+
+        /* Typography & Components */
+        h1, h2, h3 { margin: 0; }
+        .text-sm { font-size: 0.85rem; color: var(--text-dim); }
+        .text-lg { font-size: 1.2rem; font-weight: bold; }
+        .money { color: #34d399; font-weight: bold; font-family: monospace; }
+        .money.neg { color: #f87171; }
+        .ovr-badge { padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+        .ovr-90 { background: #064e3b; color: #34d399; }
+        .ovr-80 { background: #78350f; color: #fbbf24; }
+        .ovr-60 { background: #374151; color: #9ca3af; }
+
+        .btn { border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: 0.1s; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-dark { background: #374151; color: white; }
+        .btn-gold { background: linear-gradient(45deg, #b45309, #fbbf24); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-block { width: 100%; display: block; margin-top: 10px; padding: 14px; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+
+        .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 12px; }
+        .flex-row { display: flex; justify-content: space-between; align-items: center; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 8px; }
+
+        /* News Feed Styles */
+        .news-item { background: var(--panel); border-bottom: 1px solid var(--border); padding: 15px; display: flex; gap: 10px; }
+        .news-avatar { width: 40px; height: 40px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+        .news-content { flex: 1; }
+        .news-header { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+        .news-handle { color: var(--text-dim); font-size: 0.85rem; }
+        .news-time { color: var(--text-dim); font-size: 0.8rem; margin-left: auto; }
+        .news-text { font-size: 0.95rem; line-height: 1.4; }
+        .verified-badge { color: var(--verify); font-size: 0.9rem; }
+        .my-player-highlight { border: 1px solid #34d399; border-radius: 4px; padding: 0 4px; color: #34d399; background: rgba(52, 211, 153, 0.1); font-weight: 500; }
+
+        /* Sim Interface */
+        .scoreboard { background: #000; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; margin-bottom: 15px; }
+        .score-box { text-align: center; width: 30%; }
+        .score-num { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+        .clock { color: var(--accent); font-family: monospace; font-size: 1.5rem; font-weight: bold; }
+        .log-box { height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; border: 1px solid var(--border); margin-bottom: 10px; }
+        .log-item { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        /* Search Bar */
+        .search-container { position: relative; margin-bottom: 15px; }
+        .search-input { width: 100%; background: #111827; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .search-input:focus { outline: none; border-color: var(--primary); }
+        .search-results { max-height: 200px; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; display: none; position: absolute; width: 100%; z-index: 20; }
+        .search-item { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; }
+        .search-item:hover { background: #374151; }
+
+        /* Modal */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-box { background: var(--panel); width: 95%; max-width: 500px; max-height: 90vh; overflow-y: auto; border-radius: 12px; border: 1px solid var(--border); position: relative;}
+        .player-header-bg { padding: 20px; background: linear-gradient(135deg, #374151, #111827); border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 10px; background: var(--bg); position: sticky; top: 0; z-index: 5; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; font-weight: 500; }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: bold; }
+
+        /* Stats Table */
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; padding: 8px; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); }
+        td { padding: 8px; border-bottom: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+    <div id="screen-menu" class="screen active">
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <h1 style="font-size: 3rem; background: linear-gradient(to right, #6366f1, #f43f5e); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">HOOPSIM</h1>
+            <p class="text-sm">MADE BY VEWERTY PLOIK</p>
+            <div style="margin-top: 40px;">
+                <button class="btn btn-primary" style="width: 200px; padding: 15px;" onclick="initGame()">NEW CAREER</button>
+                <div style="height:10px;"></div>
+                <button class="btn btn-dark" style="width: 200px;" onclick="loadGame()">LOAD GAME</button>
+                <div id="load-msg" class="text-sm" style="margin-top:5px; height:20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-team-select" class="screen">
+        <div class="header"><h2>Choose Franchise</h2></div>
+        <div class="content" id="team-select-grid"></div>
+    </div>
+
+    <div id="screen-draft" class="screen">
+        <div class="header">
+            <div>
+                <div class="text-sm">CAP SPACE</div>
+                <div class="money" id="draft-budget">$120M</div>
+            </div>
+            <button class="btn btn-accent btn-sm" onclick="autoDraft()">⚡ Auto-Fill</button>
+        </div>
+        <div class="content">
+            <div class="card flex-row">
+                <span class="text-sm">Roster Size</span>
+                <span class="text-lg" id="draft-roster-count">0/5</span>
+            </div>
+            <div id="draft-list"></div>
+        </div>
+    </div>
+
+    <div id="screen-dashboard" class="screen">
+        <div class="header">
+            <div style="cursor: pointer;" onclick="showFranchiseHistory()">
+                <h2 id="dash-team-name">Team</h2>
+                <span class="text-sm"><span id="dash-date">Nov 1</span> | S<span id="dash-season">1</span></span>
+            </div>
+            <button class="btn btn-dark btn-sm" onclick="saveGame(true)">Save</button>
+        </div>
+
+        <div class="content" style="padding: 0;">
+            <div class="card" style="text-align: center; border-color: var(--primary); margin: 15px;">
+                <div class="text-sm" style="margin-bottom: 5px;">NEXT MATCHUP</div>
+                <h2 id="dash-matchup" style="margin-bottom: 10px;">Vs. Opponent</h2>
+                <div id="dash-record" class="text-lg" style="margin-bottom: 10px; color: var(--text-dim);">0-0</div>
+                <button id="btn-play-game" class="btn btn-primary btn-block" onclick="prepGame()">PLAY GAME</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('news')">The Feed</div>
+                <div class="tab" onclick="switchTab('roster')">Roster</div>
+                <div class="tab" onclick="switchTab('standings')">League</div>
+            </div>
+
+            <div id="tab-news" style="padding-bottom: 20px;">
+                <div id="news-feed-list"></div>
+            </div>
+
+            <div id="tab-roster" style="display:none; padding: 15px;">
+                <button class="btn btn-outline btn-block" style="margin-bottom:10px" onclick="openFreeAgency()">Sign Free Agent (Cut Player)</button>
+                <table id="dash-roster-table"></table>
+            </div>
+
+            <div id="tab-standings" style="display:none; padding: 15px;">
+                <div class="search-container">
+                    <input type="text" id="league-search" class="search-input" placeholder="Search for a player..." onkeyup="searchPlayers()">
+                    <div id="search-results" class="search-results"></div>
+                </div>
+
+                 <div id="bracket-view" style="display:none;">
+                    <h3 style="color:var(--gold); text-align:center;">PLAYOFF BRACKET</h3>
+                    <div id="bracket-container" class="bracket-box" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+                </div>
+                <div id="dash-standings-list"></div>
+                <h3 style="margin-top:20px; border-top:1px solid #333; padding-top:10px;">Scoring Leaders</h3>
+                <div id="dash-leaders-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-sim" class="screen">
+        <div class="header">
+            <h3 id="sim-title">Live Game</h3>
+        </div>
+        <div class="content">
+            <div class="scoreboard">
+                <div class="score-box">
+                    <div class="text-sm" id="sim-home-name">HOME</div>
+                    <div class="score-num" id="sim-home-score">0</div>
+                </div>
+                <div class="score-box">
+                    <div class="clock" id="sim-clock">12:00</div>
+                    <div class="text-sm" id="sim-q">Q1</div>
+                </div>
+                <div class="score-box">
+                    <div class="text-sm" id="sim-away-name">AWAY</div>
+                    <div class="score-num" id="sim-away-score">0</div>
+                </div>
+            </div>
+            <div class="log-box" id="sim-log"></div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-dark" style="flex:1" onclick="setSpeed(1000)">Slow</button>
+                <button class="btn btn-dark" style="flex:1" onclick="setSpeed(200)">Fast</button>
+                <button class="btn btn-accent" style="flex:1" onclick="setSpeed(5)">Instant</button>
+            </div>
+            <div class="card" style="margin-top: 15px;">
+                <h4 style="border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 5px;">Live Impact</h4>
+                <div id="sim-stats-ticker" class="text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-boxscore" class="screen">
+        <div class="header">
+            <h3>Final Score</h3>
+            <button class="btn btn-primary btn-sm" onclick="closeBoxScore()">Continue</button>
+        </div>
+        <div class="content">
+            <div class="scoreboard" style="margin-bottom: 20px;">
+                <div class="score-box">
+                    <div id="box-h-name" class="text-sm">HOME</div>
+                    <div id="box-h-score" class="score-num">0</div>
+                </div>
+                <div class="text-lg" style="color:var(--text-dim)">FINAL</div>
+                <div class="score-box">
+                    <div id="box-a-name" class="text-sm">AWAY</div>
+                    <div id="box-a-score" class="score-num">0</div>
+                </div>
+            </div>
+            <h4 id="box-header-1" style="color:var(--primary); margin-bottom:5px;">Home Stats</h4>
+            <div class="card" style="padding:0; overflow:hidden;">
+                <table id="box-table-1"><thead><tr><th>Player</th><th>Pts</th><th>Reb</th><th>Ast</th></tr></thead><tbody></tbody></table>
+            </div>
+            <h4 id="box-header-2" style="color:var(--accent); margin-bottom:5px;">Away Stats</h4>
+            <div class="card" style="padding:0; overflow:hidden;">
+                <table id="box-table-2"><thead><tr><th>Player</th><th>Pts</th><th>Reb</th><th>Ast</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-resign" class="screen">
+        <div class="header">
+            <h3>Offseason: Contracts</h3>
+        </div>
+        <div class="content">
+            <p class="text-sm" style="margin-bottom: 15px;">Decide on expiring contracts. Release players to clear space.</p>
+            <div id="resign-list"></div>
+            <button class="btn btn-primary btn-block" style="margin-top:20px;" onclick="finishResign()">Proceed to Draft</button>
+        </div>
+    </div>
+
+    <div id="screen-history" class="screen">
+        <div class="header">
+            <h3>Franchise History</h3>
+            <button class="btn btn-dark btn-sm" onclick="showScreen('dashboard')">Back</button>
+        </div>
+        <div class="content">
+            <button class="btn btn-gold btn-block" style="margin-bottom: 20px;" onclick="openActiveInduction()">🏆 Induct Active Player to HOF</button>
+            
+            <div class="card flex-row">
+                <div>
+                    <div class="text-sm">Championships</div>
+                    <div class="text-lg" style="color:var(--gold)" id="hist-rings">0</div>
+                </div>
+                <div>
+                    <div class="text-sm">Total Record</div>
+                    <div class="text-lg" id="hist-record">0-0</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top:20px;">Hall of Fame</h3>
+            <div class="card" id="hof-list" style="min-height: 50px;"></div>
+
+            <h3 style="margin-top:20px;">Season History</h3>
+            <table id="hist-table">
+                <thead><tr><th>Sea</th><th>Result</th><th>W-L</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="modal-fa" class="modal" onclick="closeModal(event)">
+        <div class="modal-box" style="padding:20px;">
+            <h3>Free Agent Market</h3>
+            <p class="text-sm">Sign a veteran. You must cut a player to make room. <br><span style="color:var(--accent)">Note: Cut players cannot return until next season.</span></p>
+            <div class="card flex-row">
+                <span class="text-sm">Cap Space:</span>
+                <span class="money" id="fa-cap-display">$0M</span>
+            </div>
+            
+            <h4 style="margin-top:10px">1. Select Player to CUT:</h4>
+            <select id="cut-select" class="btn-block" style="background:#333; color:white; border:1px solid #555;"></select>
+            
+            <h4 style="margin-top:10px">2. Select Player to SIGN:</h4>
+            <div id="fa-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); margin-bottom:10px;"></div>
+
+            <button class="btn btn-dark btn-block" onclick="document.getElementById('modal-fa').style.display='none'">Cancel</button>
+        </div>
+    </div>
+    
+    <div id="modal-hof-select" class="modal" onclick="closeModal(event)">
+        <div class="modal-box" style="padding:20px;">
+            <h3>Induct Active Player</h3>
+            <p class="text-sm">Choose a legend from your current roster to immortalize immediately.</p>
+            <div id="hof-active-list" style="margin-top:10px;"></div>
+            <button class="btn btn-dark btn-block" style="margin-top:10px;" onclick="document.getElementById('modal-hof-select').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-player" class="modal" onclick="closeModal(event)">
+        <div class="modal-box" style="padding:0; overflow:hidden;">
+            <div id="mp-header" class="player-header-bg">
+                <div class="flex-row">
+                    <div>
+                        <h2 id="mp-name" style="color: white; text-shadow: 0 1px 4px rgba(0,0,0,0.5);">Name</h2>
+                        <div class="text-sm" style="color: rgba(255,255,255,0.8)"><span id="mp-pos">PG</span> • <span id="mp-age">24</span> yrs • <span id="mp-team">Team</span></div>
+                    </div>
+                    <div style="text-align:right">
+                        <div id="mp-ovr" style="background:rgba(0,0,0,0.5); color:#fff; padding:5px 10px; border-radius:8px; font-weight:bold; font-size:1.5rem; border:1px solid rgba(255,255,255,0.3);">88</div>
+                        <div class="text-sm" style="color:rgba(255,255,255,0.6)">Prime: <span id="mp-prime">88</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="padding:15px;">
+                <div style="margin: 0 0 15px 0; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="card" style="text-align:center; margin:0;">
+                        <div class="text-sm">Contract</div>
+                        <div class="money" id="mp-salary">$0M</div>
+                        <div class="text-sm" id="mp-years" style="color:var(--text-dim); font-size:0.75rem;">0 Yrs left</div>
+                    </div>
+                    <div class="card" style="text-align:center; margin:0;">
+                        <div class="text-sm">Career High</div>
+                        <div class="text-lg" style="color:var(--accent)" id="mp-high">0 Pts</div>
+                    </div>
+                </div>
+                
+                <div class="card" id="mp-awards-card" style="display:none; padding:10px;">
+                     <div class="text-sm" style="margin-bottom:5px;">Awards</div>
+                     <div id="mp-awards" style="font-size:0.85rem; color:var(--gold);"></div>
+                </div>
+
+                <div class="card flex-row" style="justify-content: space-around;">
+                    <div style="text-align:center"><div class="text-lg" id="mp-ppg">0.0</div><div class="text-sm">PPG</div></div>
+                    <div style="text-align:center"><div class="text-lg" id="mp-rpg">0.0</div><div class="text-sm">RPG</div></div>
+                    <div style="text-align:center"><div class="text-lg" id="mp-apg">0.0</div><div class="text-sm">APG</div></div>
+                    <div style="text-align:center"><div class="text-lg" id="mp-fg">0%</div><div class="text-sm">FG%</div></div>
+                </div>
+
+                <h4 style="margin-top:15px; border-bottom:1px solid #333; padding-bottom:5px;">Career Stats</h4>
+                <div style="max-height: 150px; overflow-y:auto;">
+                    <table id="mp-stats-table">
+                        <thead><tr><th>Yr</th><th>Team</th><th>PPG</th><th>RPG</th><th>APG</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <button class="btn btn-dark btn-block" style="margin-top:15px;" onclick="document.getElementById('modal-player').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const TEAMS = [
+            { id: 0, name: "Louisville Leopards", colors: ["#ea580c", "#1f2937"] }, 
+            { id: 1, name: "Chicago Champs", colors: ["#dc2626", "#000000"] }, 
+            { id: 2, name: "Seattle Shore", colors: ["#059669", "#fbbf24"] }, 
+            { id: 3, name: "Florida Sharks", colors: ["#06b6d4", "#f43f5e"] }, 
+            { id: 4, name: "Honolulu Tide", colors: ["#3b82f6", "#1e40af"] }, 
+            { id: 5, name: "Los Angeles Lions", colors: ["#7c3aed", "#fbbf24"] }, 
+            { id: 6, name: "New York Nobles", colors: ["#d97706", "#1f2937"] }, 
+            { id: 7, name: "New England Panthers", colors: ["#4b5563", "#000000"] } 
+        ];
+        const F_NAMES = [
+    "James", "Michael", "William", "David", "John", "Robert", "Christopher", "Matthew", "Joseph", "Daniel",
+    "Noah", "Liam", "Ethan", "Oliver", "Benjamin", "Alexander", "Jacob", "Lucas", "Mason", "Logan",
+    "Elijah", "Aiden", "Jayden", "Matthew", "Jackson", "David", "Joseph", "Anthony", "Andrew", "John",
+    "Joshua", "Christopher", "Nicholas", "Daniel", "Matthew", "Ethan", "Joseph", "William", "Alexander", "Ryan",
+    "Noah", "Michael", "Elijah", "James", "Aiden", "Benjamin", "Mason", "Jacob", "Liam", "Logan"
+];
+
+const L_NAMES = [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Miller", "Davis", "Wilson", "Anderson", "Taylor",
+    "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson", "Garcia", "Martinez", "Robinson", "Clark",
+    "Rodriguez", "Lewis", "Lee", "Walker", "Hall", "Allen", "Young", "Hernandez", "King", "Wright",
+    "Lopez", "Hill", "Scott", "Green", "Adams", "Baker", "Gonzalez", "Nelson", "Carter", "Mitchell",
+    "Perez", "Roberts", "Turner", "Phillips", "Campbell", "Parker", "Evans", "Edwards", "Collins", "Stewart"
+];
+        const MONTHS = ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+        
+        // --- GAME STATE ---
+        let game = {
+            state: 'menu', season: 1, week: 1, 
+            day: 1, monthIndex: 0, year: 2024,
+            myTeamId: 0, budget: 120, cap: 120,
+            teams: [], players: [], schedule: [],
+            playoffBracket: null,
+            history: [], hallOfFame: [],
+            news: [] 
+        };
+        
+        let sim = {
+            timer: null, speed: 800, home: null, away: null, 
+            hScore: 0, aScore: 0, time: 720, q: 1,
+            boxScore: { home: {}, away: {} }
+        };
+
+        class Player {
+            constructor(generatedOvr) {
+                this.id = Math.random().toString(36).substr(2, 9);
+                this.name = `${F_NAMES[Math.floor(Math.random()*F_NAMES.length)]} ${L_NAMES[Math.floor(Math.random()*L_NAMES.length)]}`;
+                this.pos = ["PG", "SG", "SF", "PF", "C"][Math.floor(Math.random() * 5)];
+                this.age = Math.floor(Math.random() * 14) + 19; 
+                this.ovr = generatedOvr ? generatedOvr : Math.floor(Math.random() * 40) + 60;
+                this.off = Math.min(99, Math.floor(this.ovr * (0.9 + Math.random() * 0.2)));
+                this.def = Math.min(99, Math.floor(this.ovr * (0.9 + Math.random() * 0.2)));
+                this.calculateSalary();
+                this.contractYears = 0;
+                this.teamId = null;
+                this.retired = false;
+                this.isLocked = false; // New property: if true, cannot be signed until next season
+                this.primeOvr = this.ovr;
+                this.careerHigh = 0;
+                this.stats = { gp:0, pts:0, reb:0, ast:0, fga:0, fgm:0 };
+                this.history = [];
+                this.awards = [];
+            }
+            calculateSalary() {
+                if(this.ovr <= 65) this.salary = 1; 
+                else if(this.ovr <= 75) this.salary = Math.floor(Math.random()*10) + 5;
+                else if(this.ovr <= 85) this.salary = Math.floor(Math.random()*14) + 21;
+                else if(this.ovr <= 91) this.salary = Math.floor(Math.random()*9) + 36;
+                else this.salary = Math.floor(Math.random()*14) + 46;
+            }
+        }
+
+        // --- INIT ---
+        function initGame() {
+            game.teams = TEAMS.map((t) => ({ id: t.id, name: t.name, colors: t.colors, roster: [], wins: 0, losses: 0 }));
+            game.players = Array.from({length: 80}, () => new Player());
+            game.season = 1; game.week = 1; 
+            game.day = 1; game.monthIndex = 0; game.year = 2024;
+            game.playoffBracket = null;
+            game.cap = 135;
+            game.history = []; game.hallOfFame = []; game.news = [];
+            
+            addNews("3SPN", "The new hoop season is finally here! Who will rise to the top?", "League Office", true);
+
+            const grid = document.getElementById('team-select-grid');
+            grid.innerHTML = '';
+            game.teams.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.style.cursor = 'pointer';
+                div.style.borderLeft = `5px solid ${t.colors[0]}`;
+                div.innerText = t.name;
+                div.onclick = () => { game.myTeamId = t.id; startDraft(); };
+                grid.appendChild(div);
+            });
+            showScreen('team-select');
+        }
+
+        // --- DRAFT ---
+        function startDraft() {
+            const myTeam = game.teams[game.myTeamId];
+            const committedSalary = myTeam.roster.reduce((sum, p) => sum + p.salary, 0);
+            game.budget = game.cap - committedSalary;
+            
+            const availableCount = game.players.filter(p => p.teamId === null && !p.retired).length;
+            if(availableCount < 10) for(let i=0; i<20; i++) game.players.push(new Player());
+
+            game.teams.forEach(t => {
+                if(t.id !== game.myTeamId) {
+                    while(t.roster.length < 5) {
+                        let pool = game.players.filter(p => p.teamId === null && !p.retired);
+                        if(pool.length === 0) { game.players.push(new Player()); pool = game.players.filter(p => p.teamId === null); }
+                        let p = pool[0]; 
+                        p.teamId = t.id;
+                        p.contractYears = game.season === 1 ? Math.floor(Math.random()*3)+1 : 1;
+                        t.roster.push(p);
+                    }
+                }
+            });
+            renderDraft();
+            showScreen('draft');
+        }
+
+        function renderDraft() {
+            const bEl = document.getElementById('draft-budget');
+            bEl.innerText = `$${game.budget}M`;
+            if(game.budget < 0) bEl.classList.add('neg'); else bEl.classList.remove('neg');
+
+            const myRoster = game.teams[game.myTeamId].roster;
+            document.getElementById('draft-roster-count').innerText = `${myRoster.length}/5`;
+
+            const list = document.getElementById('draft-list');
+            list.innerHTML = '';
+
+            if(myRoster.length >= 5) {
+                list.innerHTML = `<button class="btn btn-primary btn-block" onclick="startSeason()">START SEASON</button>`;
+                return;
+            }
+
+            // Exclude locked players (though none should be locked in draft usually)
+            const available = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked).sort((a,b) => b.ovr - a.ovr);
+            
+            available.slice(0, 50).forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                let badge = p.ovr >= 90 ? 'ovr-90' : (p.ovr >= 80 ? 'ovr-80' : 'ovr-60');
+                div.innerHTML = `
+                    <div class="flex-row">
+                        <div><div class="player-link" style="color:var(--primary);font-weight:bold" onclick="showPlayer('${p.id}')">${p.name}</div>
+                        <div class="text-sm">${p.pos} • ${p.age}y • <span class="ovr-badge ${badge}">${p.ovr} OVR</span></div></div>
+                        <div style="text-align:right"><div class="money">$${p.salary}M/yr</div></div>
+                    </div>
+                    <div class="grid-3">
+                        <button class="btn btn-outline btn-sm" onclick="draftPlayer('${p.id}', 1)">1 Yr</button>
+                        <button class="btn btn-outline btn-sm" onclick="draftPlayer('${p.id}', 2)">2 Yrs</button>
+                        <button class="btn btn-outline btn-sm" onclick="draftPlayer('${p.id}', 3)">3 Yrs</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function draftPlayer(id, years) {
+            const p = game.players.find(x => x.id === id);
+            if(game.budget >= p.salary) {
+                game.budget -= p.salary;
+                p.teamId = game.myTeamId;
+                p.contractYears = years;
+                game.teams[game.myTeamId].roster.push(p);
+                renderDraft();
+            } else alert("Insufficient Cap Space!");
+        }
+
+        function autoDraft() {
+            const myTeam = game.teams[game.myTeamId];
+            while(myTeam.roster.length < 5) {
+                if(game.budget < 2) {
+                    let scrub = new Player(60); scrub.salary = 1; scrub.teamId = game.myTeamId; scrub.contractYears = 1;
+                    game.players.push(scrub); myTeam.roster.push(scrub); game.budget -= 1;
+                } else {
+                    const available = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked && p.salary <= game.budget).sort((a,b) => b.ovr - a.ovr);
+                    if(available.length === 0) {
+                         let scrub = new Player(60); scrub.salary = 1; scrub.teamId = game.myTeamId; scrub.contractYears = 1;
+                         game.players.push(scrub); myTeam.roster.push(scrub); game.budget -= 1;
+                    } else {
+                        const p = available[0];
+                        game.budget -= p.salary;
+                        p.teamId = game.myTeamId;
+                        p.contractYears = 1;
+                        myTeam.roster.push(p);
+                    }
+                }
+            }
+            startSeason();
+        }
+
+        // --- SEASON & DATES ---
+        function advanceDate(days) {
+            game.day += days;
+            if(game.day > 30) {
+                game.day = 1;
+                game.monthIndex++;
+                if(game.monthIndex >= MONTHS.length) {
+                    game.monthIndex = 0;
+                    // game.year++ happens in endSeason for consistency
+                }
+            }
+            const cutoff = Date.now() - (1000 * 60 * 5); 
+            if(game.news.length > 30) game.news = game.news.slice(0, 30);
+            
+            // Random Social Media Generation
+            if(Math.random() < 0.4) generateRandomNews();
+        }
+
+        function getFormattedDate() {
+            return `${MONTHS[game.monthIndex]} ${game.day}, ${game.year}`;
+        }
+
+        function startSeason() {
+            generateSchedule();
+            aiFillRosters();
+            updateDashboard();
+            showScreen('dashboard');
+        }
+
+        // --- CPU AI MARKET LOGIC ---
+        function cpuMarketMoves() {
+            // 1. Fill holes
+            aiFillRosters();
+
+            // 2. Active Sign & Cut Logic
+            const freeAgents = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked).sort((a,b)=>b.ovr - a.ovr);
+            if(freeAgents.length === 0) return;
+
+            const bestFA = freeAgents[0];
+
+            game.teams.forEach(t => {
+                if(t.id === game.myTeamId) return; // Skip user team
+
+                // Find worst player on team
+                let worstPlayer = t.roster.sort((a,b)=>a.ovr - b.ovr)[0];
+
+                // If Best FA is significantly better (e.g., +4 OVR) than worst player
+                if(bestFA.ovr > (worstPlayer.ovr + 4)) {
+                    // Execute Sign & Cut
+                    // Cut Worst -> LOCK THEM
+                    worstPlayer.teamId = null;
+                    worstPlayer.contractYears = 0;
+                    worstPlayer.isLocked = true; // Lock until next season
+                    t.roster = t.roster.filter(p => p.id !== worstPlayer.id);
+
+                    // Sign Best
+                    bestFA.teamId = t.id;
+                    bestFA.contractYears = 1;
+                    t.roster.push(bestFA);
+
+                    addNews("Transaction", `${t.name} signed ${bestFA.name} (${bestFA.ovr}) and waived ${worstPlayer.name}.`, "TransactionNews", true);
+                }
+            });
+        }
+
+        function aiFillRosters() {
+            game.teams.forEach(t => {
+                if(t.id !== game.myTeamId && t.roster.length < 5) {
+                    const fa = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked).sort((a,b)=>b.ovr - a.ovr);
+                    if(fa.length > 0) {
+                        const p = fa[0];
+                        p.teamId = t.id;
+                        p.contractYears = 1;
+                        t.roster.push(p);
+                        addNews("Transaction Wire", `${t.name} have signed free agent ${p.name}.`, "League", false);
+                    }
+                }
+            });
+        }
+
+        function generateSchedule() {
+            let opps = [];
+            const otherIds = game.teams.filter(t => t.id !== game.myTeamId).map(t => t.id);
+            for(let i=0; i<12; i++) opps.push(otherIds[Math.floor(Math.random() * otherIds.length)]); 
+            game.schedule = opps;
+        }
+
+        // --- NEWS SYSTEM ---
+        function addNews(author, text, handle, verified, relatedPlayerId=null) {
+            const isMyPlayer = relatedPlayerId && game.teams[game.myTeamId].roster.find(p=>p.id===relatedPlayerId);
+            game.news.unshift({
+                author, text, handle, verified, date: getFormattedDate(), isMyPlayer
+            });
+            updateNewsFeed();
+        }
+
+        function updateNewsFeed() {
+            const container = document.getElementById('news-feed-list');
+            if(!container) return;
+            container.innerHTML = '';
+            game.news.forEach(n => {
+                const div = document.createElement('div');
+                div.className = 'news-item';
+                div.innerHTML = `
+                    <div class="news-avatar">${n.author[0]}</div>
+                    <div class="news-content">
+                        <div class="news-header">
+                            <span style="font-weight:bold">${n.author}</span>
+                            ${n.verified ? '<span class="verified-badge">✔</span>' : ''}
+                            <span class="news-handle">@${n.handle}</span>
+                            <span class="news-time">${n.date}</span>
+                        </div>
+                        <div class="news-text">${n.isMyPlayer ? `<span class="my-player-highlight">${n.text}</span>` : n.text}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function generateRandomNews() {
+            // Flavor text to make world feel alive
+            const topics = [
+                { auth: "Woj", hand: "wojespn", ver: true, texts: ["Sources: Salary cap expected to rise next season.", "Trade talks are heating up across the league.", "Scouts are calling next year's draft class 'generational'."] },
+                { auth: "Shams", hand: "shamschar", ver: true, texts: ["Players meeting scheduled to discuss league rules.", "Several teams looking to add veteran presence before playoffs."] },
+                { auth: "HoopsHype", hand: "hoopshype", ver: false, texts: ["Top 5 dunks of the week! 🎬", "Who is your MVP so far?"] },
+                { auth: "Random Fan", hand: "fan123", ver: false, texts: ["My team needs to fire the coach ASAP.", "Refs are blind this year lol.", "Just bought courtside tickets!"] }
+            ];
+            
+            const t = topics[Math.floor(Math.random() * topics.length)];
+            const text = t.texts[Math.floor(Math.random() * t.texts.length)];
+            addNews(t.auth, text, t.hand, t.ver);
+        }
+
+        function generateSocialReaction(type, data) {
+            const fans = ["HoopFan23", "BallIsLife", "CourtSide", "NetRipper", "DunkMaster"];
+            const verifieds = ["3SPN", "TheDailyDribble", "BleacherReport"];
+            
+            if(type === 'big_game') {
+                const phrases = [
+                    `dropped ${data.pts} points! Unstoppable force tonight.`,
+                    `was cooking! ${data.pts} PTS on ${data.fg} shooting. 🔥`,
+                    `is literally carrying the team. ${data.pts} points in the W.`,
+                    `put on a masterclass. ${data.pts} piece. MVP conversation?`
+                ];
+                const text = `${data.name} ${phrases[Math.floor(Math.random()*phrases.length)]}`;
+                addNews("HoopFan", text, fans[Math.floor(Math.random()*fans.length)], false, data.id);
+                
+                if(Math.random() > 0.5) {
+                    addNews(data.name, `Great team win tonight! We keep building. 💪`, data.name.replace(' ','').toLowerCase(), true, data.id);
+                }
+
+            } else if (type === 'upset') {
+                addNews("3SPN", `UPSET ALERT: ${data.winner} takes down ${data.loser}! No one saw this coming.`, "3SPN", true);
+            } else if (type === 'award') {
+                const pName = data.name;
+                const award = data.award;
+                addNews(pName, `Honored to win ${award}. Hard work pays off! 🙏🏆`, pName.replace(' ', ''), true, data.id);
+                addNews("3SPN", `BREAKING: ${pName} has been named ${award}. Well deserved season.`, "3SPN", true, data.id);
+            }
+        }
+
+        // --- DASHBOARD ---
+        function updateDashboard() {
+            const t = game.teams[game.myTeamId];
+            document.getElementById('dash-team-name').innerText = t.name;
+            document.getElementById('dash-season').innerText = game.season;
+            document.getElementById('dash-date').innerText = getFormattedDate();
+            document.getElementById('dash-record').innerText = `${t.wins} - ${t.losses}`;
+
+            const isPlayoffs = game.week > 12;
+
+            if(t.roster.length < 5) {
+                document.getElementById('btn-play-game').innerText = "ROSTER INCOMPLETE";
+                document.getElementById('btn-play-game').onclick = () => alert("You need 5 players! Use the 'Sign Free Agent' button in the Roster tab.");
+            } else if(isPlayoffs) {
+                if(!game.playoffBracket) initPlayoffs();
+                document.getElementById('tab-standings').style.display = 'none'; 
+                document.getElementById('bracket-view').style.display = 'block';
+                renderBracket();
+                
+                const oppId = getPlayoffOpponent();
+                if(oppId !== null) {
+                    document.getElementById('dash-matchup').innerText = `PLAYOFFS VS ${game.teams[oppId].name}`;
+                    document.getElementById('btn-play-game').innerText = "PLAY GAME";
+                    document.getElementById('btn-play-game').onclick = prepGame;
+                } else {
+                    document.getElementById('dash-matchup').innerText = "Eliminated";
+                    document.getElementById('btn-play-game').innerText = "Simulate Playoffs";
+                    document.getElementById('btn-play-game').onclick = simFullPlayoffs;
+                }
+            } else {
+                document.getElementById('bracket-view').style.display = 'none';
+                const oppId = game.schedule[game.week-1];
+                document.getElementById('dash-matchup').innerText = `vs ${game.teams[oppId].name}`;
+                document.getElementById('btn-play-game').innerText = "PLAY GAME";
+                document.getElementById('btn-play-game').onclick = prepGame;
+            }
+
+            // Roster Table - SORTED BY PPG
+            const tbody = document.getElementById('dash-roster-table');
+            tbody.innerHTML = `<thead><tr><th>Name</th><th>PPG</th><th>FG%</th><th>OVR</th></tr></thead><tbody></tbody>`;
+            
+            let sortedRoster = [...t.roster].sort((a,b) => {
+                let ppgA = a.stats.gp > 0 ? a.stats.pts / a.stats.gp : 0;
+                let ppgB = b.stats.gp > 0 ? b.stats.pts / b.stats.gp : 0;
+                return ppgB - ppgA;
+            });
+
+            sortedRoster.forEach(p => {
+                let badge = p.ovr >= 90 ? 'ovr-90' : (p.ovr >= 80 ? 'ovr-80' : 'ovr-60');
+                let fgPct = p.stats.fga > 0 ? ((p.stats.fgm / p.stats.fga) * 100).toFixed(1) + '%' : '-';
+                let ppg = p.stats.gp > 0 ? (p.stats.pts/p.stats.gp).toFixed(1) : "0.0";
+                
+                tbody.querySelector('tbody').innerHTML += `
+                    <tr>
+                        <td><span class="player-link" style="color:var(--primary);font-weight:bold" onclick="showPlayer('${p.id}')">${p.name}</span></td>
+                        <td style="font-weight:bold">${ppg}</td>
+                        <td>${fgPct}</td>
+                        <td><span class="ovr-badge ${badge}">${p.ovr}</span></td>
+                    </tr>
+                `;
+            });
+
+            // Standings
+            const sorted = [...game.teams].sort((a,b) => b.wins - a.wins);
+            document.getElementById('dash-standings-list').innerHTML = sorted.map((team, i) => `
+                <div class="flex-row" style="padding:10px; border-bottom:1px solid #333; ${team.id === game.myTeamId ? 'background:rgba(99, 102, 241, 0.1)':''}">
+                    <span>${i+1}. ${team.name}</span>
+                    <span style="font-weight:bold">${team.wins}-${team.losses}</span>
+                </div>
+            `).join('');
+
+            // Leaders
+            const leaders = game.players.filter(p => p.stats.gp > 0 && !p.retired).sort((a,b) => (b.stats.pts/b.stats.gp) - (a.stats.pts/a.stats.gp)).slice(0, 5);
+            document.getElementById('dash-leaders-list').innerHTML = leaders.map(p => `
+                <div class="flex-row" style="padding:10px; border-bottom:1px solid #333;">
+                    <span class="player-link" style="color:var(--primary)" onclick="showPlayer('${p.id}')">${p.name} (${p.teamId!=null ? game.teams[p.teamId].name.split(' ')[0] : 'FA'})</span>
+                    <span style="font-weight:bold">${(p.stats.pts/p.stats.gp).toFixed(1)} PPG</span>
+                </div>
+            `).join('');
+            
+            updateNewsFeed();
+        }
+
+        // --- GAMEPLAY ---
+        function prepGame() {
+            advanceDate(3);
+            
+            // Sim CPU
+            game.teams.forEach(t => {
+                if(t.id !== game.myTeamId && game.week <= 12) {
+                    if(Math.random() > 0.5) t.wins++; else t.losses++;
+                    t.roster.forEach(p => {
+                        p.stats.gp++;
+                        p.stats.pts += Math.floor((p.ovr/3) + Math.random()*10);
+                        p.stats.reb += Math.floor(Math.random() * 8);
+                        p.stats.ast += Math.floor(Math.random() * 5);
+                        p.stats.fga += 15; p.stats.fgm += 7;
+                    });
+                }
+            });
+
+            // TRIGGER CPU TRADES/SIGNINGS
+            cpuMarketMoves();
+
+            let oppId;
+            if(game.week <= 12) oppId = game.schedule[game.week-1];
+            else oppId = getPlayoffOpponent();
+
+            sim = {
+                timer: null, speed: 800,
+                home: game.teams[game.myTeamId], 
+                away: game.teams[oppId],
+                hScore: 0, aScore: 0,
+                time: 720, q: 1,
+                boxScore: { home: {}, away: {} }
+            };
+
+            [...sim.home.roster, ...sim.away.roster].forEach(p => {
+                const key = sim.home.roster.includes(p) ? 'home' : 'away';
+                sim.boxScore[key][p.id] = { name: p.name, pts: 0, reb: 0, ast: 0, id: p.id };
+            });
+
+            document.getElementById('sim-log').innerHTML = '';
+            document.getElementById('sim-stats-ticker').innerHTML = 'Tip Off!';
+            document.getElementById('sim-title').innerHTML = 'Live Game';
+            updateSimUI();
+            showScreen('sim');
+            simLoop();
+        }
+
+        function simLoop() {
+            sim.timer = setTimeout(() => {
+                sim.time -= 15;
+                const hOvr = sim.home.roster.reduce((a,b)=>a+b.ovr,0)/5;
+                const aOvr = sim.away.roster.reduce((a,b)=>a+b.ovr,0)/5;
+                let homeAdvantage = (hOvr - aOvr) * 0.5;
+                let isHomePos = (Math.random() * 86) < (50 + homeAdvantage);
+
+                const attTeam = isHomePos ? sim.home : sim.away;
+                const defTeam = isHomePos ? sim.away : sim.home;
+                const boxKey = isHomePos ? 'home' : 'away';
+
+                const shooter = attTeam.roster[Math.floor(Math.random()*5)];
+                const defender = defTeam.roster[Math.floor(Math.random()*5)];
+                let quality = (shooter.off - defender.def) * 0.4;
+                let shotChance = Math.min(Math.max(45 + quality, 25), 70);
+
+                const pObj = attTeam.roster.find(p => p.id === shooter.id);
+                if(pObj) pObj.stats.fga++;
+
+                if((Math.random() * 100) < shotChance) {
+                    let pts = Math.random() > 0.75 ? 3 : 2;
+                    if(isHomePos) sim.hScore += pts; else sim.aScore += pts;
+                    if(pObj) pObj.stats.fgm++;
+                    sim.boxScore[boxKey][shooter.id].pts += pts;
+                    
+                    if(Math.random() > 0.4) {
+                        let passer = attTeam.roster.filter(p=>p.id!==shooter.id)[Math.floor(Math.random()*4)];
+                        sim.boxScore[boxKey][passer.id].ast++;
+                        log(`${shooter.name} scores ${pts}pts (Ast: ${passer.name})`, isHomePos);
+                    } else log(`${shooter.name} scores ${pts}pts`, isHomePos);
+                } else {
+                    let rebKey = (Math.random() < 0.25) ? (isHomePos ? 'home' : 'away') : (isHomePos ? 'away' : 'home');
+                    const rebounder = (rebKey === 'home' ? sim.home : sim.away).roster[Math.floor(Math.random()*5)];
+                    sim.boxScore[rebKey][rebounder.id].reb++;
+                    log(`Miss by ${shooter.name}. Reb ${rebounder.name}`, isHomePos, true);
+                }
+
+                updateSimUI();
+                if(sim.time <= 0) {
+                    if(sim.q < 4) { sim.q++; sim.time = 720; log(`--- END Q${sim.q-1} ---`, null); simLoop(); }
+                    else endGame();
+                } else simLoop();
+            }, sim.speed);
+        }
+
+        function updateSimUI() {
+            document.getElementById('sim-home-name').innerText = sim.home.name;
+            document.getElementById('sim-away-name').innerText = sim.away.name;
+            document.getElementById('sim-home-score').innerText = sim.hScore;
+            document.getElementById('sim-away-score').innerText = sim.aScore;
+            let m = Math.floor(sim.time/60), s = sim.time%60;
+            document.getElementById('sim-clock').innerText = `${m}:${s<10?'0'+s:s}`;
+            document.getElementById('sim-q').innerText = "Q" + sim.q;
+        }
+
+        function log(msg, isHome, isBad=false) {
+            const div = document.createElement('div');
+            div.className = 'log-item';
+            div.innerText = msg;
+            div.style.color = isHome === true ? '#818cf8' : (isHome === false ? '#f43f5e' : '#fff');
+            if(isBad) div.style.color = '#6b7280';
+            document.getElementById('sim-log').prepend(div);
+        }
+        function setSpeed(ms) { sim.speed = ms; }
+
+        function endGame() {
+            const win = sim.hScore > sim.aScore;
+            if(win) sim.home.wins++; else sim.home.losses++;
+            if(!win) sim.away.wins++; else sim.away.losses++;
+
+            const processStats = (key, team) => {
+                Object.values(sim.boxScore[key]).forEach(s => {
+                    const p = team.roster.find(x => x.id === s.id);
+                    if(p) { 
+                        p.stats.gp++; p.stats.pts += s.pts; p.stats.reb += s.reb; p.stats.ast += s.ast; 
+                        if(s.pts > p.careerHigh) p.careerHigh = s.pts; 
+                        
+                        // Check for Social Media Moment
+                        if(s.pts >= 25) {
+                            let fgPct = p.stats.fga>0 ? Math.floor((p.stats.fgm/p.stats.fga)*100)+'%' : '50%';
+                            generateSocialReaction('big_game', {name: p.name, pts: s.pts, fg: fgPct, id: p.id});
+                        }
+                    }
+                });
+            };
+            processStats('home', sim.home);
+            processStats('away', sim.away);
+
+            if(game.week > 12) handlePlayoffResult(win);
+            
+            showBoxScore();
+        }
+
+        function showBoxScore() {
+            document.getElementById('box-h-name').innerText = sim.home.name;
+            document.getElementById('box-h-score').innerText = sim.hScore;
+            document.getElementById('box-a-name').innerText = sim.away.name;
+            document.getElementById('box-a-score').innerText = sim.aScore;
+            
+            const fillTable = (id, data) => {
+                const t = document.getElementById(id).querySelector('tbody');
+                t.innerHTML = '';
+                Object.values(data).sort((a,b)=>b.pts-a.pts).forEach(p => {
+                    t.innerHTML += `<tr><td class="player-link" style="color:var(--text)" onclick="showPlayer('${p.id}')">${p.name}</td><td>${p.pts}</td><td>${p.reb}</td><td>${p.ast}</td></tr>`;
+                });
+            };
+            fillTable('box-table-1', sim.boxScore.home);
+            fillTable('box-table-2', sim.boxScore.away);
+            showScreen('boxscore');
+        }
+
+        function closeBoxScore() {
+            game.week++;
+            updateDashboard();
+            showScreen('dashboard');
+        }
+
+        // --- PLAYOFFS & AWARDS ---
+        function initPlayoffs() {
+            awardMVP(); 
+            const sorted = [...game.teams].sort((a,b) => b.wins - a.wins).slice(0, 4);
+            game.playoffBracket = {
+                round: 1,
+                matchups: [
+                    { t1: sorted[0], t2: sorted[3], winner: null },
+                    { t1: sorted[1], t2: sorted[2], winner: null }
+                ],
+                finals: { t1: null, t2: null, winner: null }
+            };
+        }
+
+        function awardMVP() {
+            const all = game.players.filter(p => !p.retired && p.stats.gp > 5);
+            all.sort((a,b) => (a.stats.pts + a.stats.reb + a.stats.ast)/a.stats.gp - (b.stats.pts + b.stats.reb + b.stats.ast)/b.stats.gp).reverse();
+            const winner = all[0];
+            winner.awards.push(`S${game.season} MVP`);
+            generateSocialReaction('award', {name: winner.name, award: "MVP", id: winner.id});
+        }
+
+        function renderBracket() {
+            const pb = game.playoffBracket;
+            const container = document.getElementById('bracket-container');
+            container.innerHTML = '';
+            pb.matchups.forEach((m) => {
+                let w1 = m.winner && m.winner.id === m.t1.id ? 'winner-text' : '';
+                let w2 = m.winner && m.winner.id === m.t2.id ? 'winner-text' : '';
+                container.innerHTML += `<div class="matchup-card"><div class="${w1}">${m.t1.name}</div><div style="font-size:0.8rem;color:#666">VS</div><div class="${w2}">${m.t2.name}</div></div>`;
+            });
+            if(pb.finals.t1) {
+                let w1 = pb.finals.winner && pb.finals.winner.id === pb.finals.t1.id ? 'winner-text' : '';
+                let w2 = pb.finals.winner && pb.finals.winner.id === pb.finals.t2.id ? 'winner-text' : '';
+                container.innerHTML += `<div style="text-align:center;color:var(--primary);margin-top:10px;">FINALS</div><div class="matchup-card" style="border-color:var(--gold)"><div class="${w1}">${pb.finals.t1.name}</div><div class="${w2}">${pb.finals.t2.name}</div></div>`;
+            }
+        }
+
+        function getPlayoffOpponent() {
+            const pb = game.playoffBracket;
+            const myId = game.myTeamId;
+            if(pb.round === 1) {
+                const match = pb.matchups.find(m => m.t1.id === myId || m.t2.id === myId);
+                if(match && !match.winner) return match.t1.id === myId ? match.t2.id : match.t1.id;
+            } else if (pb.round === 2) {
+                if((pb.finals.t1.id === myId || pb.finals.t2.id === myId) && !pb.finals.winner) {
+                    return pb.finals.t1.id === myId ? pb.finals.t2.id : pb.finals.t1.id;
+                }
+            }
+            return null;
+        }
+
+        function handlePlayoffResult(homeWon) {
+            const pb = game.playoffBracket;
+            const winner = homeWon ? sim.home : sim.away;
+            
+            if(pb.round === 1) {
+                const match = pb.matchups.find(m => m.t1.id === winner.id || m.t2.id === winner.id);
+                match.winner = winner;
+                const other = pb.matchups.find(m => m !== match);
+                if(!other.winner) other.winner = Math.random() > 0.5 ? other.t1 : other.t2; 
+
+                if(pb.matchups.every(m => m.winner)) {
+                    pb.round = 2;
+                    pb.finals.t1 = pb.matchups[0].winner;
+                    pb.finals.t2 = pb.matchups[1].winner;
+                    addNews("3SPN", `The Finals are set! ${pb.finals.t1.name} vs ${pb.finals.t2.name}.`, "3SPN", true);
+                }
+            } else {
+                pb.finals.winner = winner;
+                winner.roster.forEach(p => p.awards.push(`S${game.season} Champ`));
+                
+                // FMVP
+                const box = homeWon ? sim.boxScore.home : sim.boxScore.away;
+                let fmvpId = Object.values(box).sort((a,b)=>b.pts-a.pts)[0].id;
+                let fmvp = winner.roster.find(p => p.id === fmvpId);
+                if(fmvp) {
+                    fmvp.awards.push(`S${game.season} FMVP`);
+                    generateSocialReaction('award', {name: fmvp.name, award: "Finals MVP", id: fmvp.id});
+                }
+
+                if(winner.id === game.myTeamId) {
+                    game.history.push({ season: game.season, result: "Champion", record: `${winner.wins}-${winner.losses}` });
+                } else {
+                    const myTeam = game.teams[game.myTeamId];
+                    game.history.push({ season: game.season, result: "Eliminated", record: `${myTeam.wins}-${myTeam.losses}` });
+                }
+                
+                addNews("3SPN", `THE ${winner.name.toUpperCase()} ARE YOUR S${game.season} CHAMPIONS! 🏆`, "3SPN", true);
+                setTimeout(endSeason, 1500);
+            }
+        }
+
+        function simFullPlayoffs() {
+            const pb = game.playoffBracket;
+            pb.matchups.forEach(m => { if(!m.winner) m.winner = Math.random()>0.5 ? m.t1 : m.t2; });
+            pb.finals.t1 = pb.matchups[0].winner;
+            pb.finals.t2 = pb.matchups[1].winner;
+            pb.finals.winner = Math.random() > 0.5 ? pb.finals.t1 : pb.finals.t2;
+            const winner = pb.finals.winner;
+            
+            winner.roster.forEach(p => p.awards.push(`S${game.season} Champ`));
+            
+            // FMVP sim
+            const fmvp = winner.roster[Math.floor(Math.random()*winner.roster.length)];
+            fmvp.awards.push(`S${game.season} FMVP`);
+            generateSocialReaction('award', {name: fmvp.name, award: "Finals MVP", id: fmvp.id});
+
+            if(winner.id === game.myTeamId) {
+                game.history.push({ season: game.season, result: "Champion", record: `${winner.wins}-${winner.losses}` });
+            } else {
+                const myTeam = game.teams[game.myTeamId];
+                game.history.push({ season: game.season, result: "Lost", record: `${myTeam.wins}-${myTeam.losses}` });
+            }
+            addNews("3SPN", `The ${winner.name} win the title!`, "3SPN", true);
+            endSeason();
+        }
+
+        // --- END SEASON ---
+        function endSeason() {
+            // Archive Stats
+            game.players.forEach(p => {
+                if(p.stats.gp > 0) {
+                    let teamName = p.teamId !== null ? game.teams[p.teamId].name : 'Free Agent';
+                    let fgPct = p.stats.fga > 0 ? Math.floor((p.stats.fgm / p.stats.fga)*100) + '%' : '0%';
+                    p.history.unshift({
+                        season: game.season,
+                        team: teamName,
+                        ppg: (p.stats.pts/p.stats.gp).toFixed(1),
+                        rpg: (p.stats.reb/p.stats.gp).toFixed(1),
+                        apg: (p.stats.ast/p.stats.gp).toFixed(1),
+                        fg: fgPct
+                    });
+                }
+                p.stats = { gp:0, pts:0, reb:0, ast:0, fga:0, fgm:0 };
+                if(p.ovr > p.primeOvr) p.primeOvr = p.ovr;
+                
+                // Unlocks players who were cut previous season
+                p.isLocked = false; 
+
+                // Aging & Retirement
+                p.age++;
+                let retired = false;
+                if(p.age >= 40) retired = true; 
+                else if(p.age === 39 && Math.random() < 0.90) retired = true;
+                else if(p.age >= 35 && Math.random() < 0.35) retired = true; 
+
+                if(retired) {
+                    p.retired = true;
+                    p.teamId = null;
+                } else {
+                    if(p.age > 30) p.ovr -= Math.floor(Math.random()*3);
+                    else if(p.age < 27) p.ovr += Math.floor(Math.random()*3)+1;
+                    p.ovr = Math.min(99, Math.max(50, p.ovr));
+                    p.calculateSalary(); 
+                    if(p.contractYears > 0) p.contractYears--;
+                }
+            });
+
+            game.teams.forEach(t => {
+                t.roster = t.roster.filter(p => !p.retired);
+                t.wins=0; t.losses=0;
+            });
+
+            game.season++;
+            game.year++; // FIX: Year increments
+            game.week = 1;
+            game.playoffBracket = null;
+            game.cap = 135 + (game.season * 5); 
+            addNews("League", `Season ${game.season} has officially begun!`, "Official", true);
+            startResignPhase();
+        }
+
+        // --- RESIGN ---
+        function startResignPhase() {
+            const myTeam = game.teams[game.myTeamId];
+            const expiring = myTeam.roster.filter(p => p.contractYears === 0);
+            
+            if(expiring.length === 0) { startDraft(); return; }
+
+            const list = document.getElementById('resign-list');
+            list.innerHTML = '';
+            
+            expiring.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.id = `resign-card-${p.id}`;
+                div.innerHTML = `
+                    <div class="flex-row">
+                        <div><span class="text-lg">${p.name}</span><div class="text-sm">${p.ovr} OVR</div></div>
+                        <div class="money">$${p.salary}M/yr</div>
+                    </div>
+                    <div class="grid-3" style="margin-top:10px;">
+                        <button class="btn btn-outline" onclick="setResignDecision('${p.id}', 1, this)">1 Yr</button>
+                        <button class="btn btn-outline" onclick="setResignDecision('${p.id}', 2, this)">2 Yrs</button>
+                        <button class="btn btn-outline" onclick="setResignDecision('${p.id}', 3, this)">3 Yrs</button>
+                    </div>
+                    <button class="btn btn-accent btn-block" style="margin-top:5px;" onclick="setResignDecision('${p.id}', 0, this)">Release</button>
+                `;
+                list.appendChild(div);
+            });
+
+            showScreen('resign');
+        }
+
+        function setResignDecision(id, years, btn) {
+            const p = game.players.find(x => x.id === id);
+            p.pendingDecision = years;
+            const card = document.getElementById(`resign-card-${id}`);
+            card.querySelectorAll('.btn').forEach(b => b.style.opacity = '0.5');
+            btn.style.opacity = '1';
+            btn.style.border = '2px solid white';
+        }
+
+        function finishResign() {
+            const myTeam = game.teams[game.myTeamId];
+            let keep = [], release = [];
+            myTeam.roster.forEach(p => {
+                if(p.contractYears > 0) keep.push(p);
+                else if(p.pendingDecision !== undefined) {
+                    if(p.pendingDecision > 0) { p.contractYears = p.pendingDecision; keep.push(p); }
+                    else release.push(p);
+                    delete p.pendingDecision;
+                } else release.push(p);
+            });
+            myTeam.roster = keep;
+            release.forEach(p => { p.teamId = null; p.contractYears = 0; });
+            startDraft();
+        }
+
+        // --- FREE AGENCY (MID SEASON) ---
+        function openFreeAgency() {
+            const modal = document.getElementById('modal-fa');
+            modal.style.display = 'flex';
+            
+            const cutSel = document.getElementById('cut-select');
+            cutSel.innerHTML = '<option value="">-- Choose Player to CUT --</option>';
+            game.teams[game.myTeamId].roster.forEach(p => {
+                cutSel.innerHTML += `<option value="${p.id}">${p.name} (${p.ovr} OVR) - $${p.salary}M</option>`;
+            });
+
+            // Filter out LOCKED players
+            const vets = game.players.filter(p => p.teamId === null && !p.retired && !p.isLocked && p.age > 20).sort((a,b)=>b.ovr - a.ovr);
+            const list = document.getElementById('fa-list');
+            list.innerHTML = '';
+            
+            if(vets.length === 0) list.innerHTML = '<div style="padding:10px;text-align:center">No Veterans Available</div>';
+
+            vets.forEach(p => {
+                const div = document.createElement('div');
+                div.style.padding = '8px';
+                div.style.borderBottom = '1px solid #333';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.innerHTML = `
+                    <div>${p.name} (${p.ovr} OVR)</div>
+                    <button class="btn btn-primary btn-sm" onclick="signFreeAgent('${p.id}', ${p.salary})">Sign ($${p.salary}M)</button>
+                `;
+                list.appendChild(div);
+            });
+
+            cutSel.onchange = () => {
+                const cutId = cutSel.value;
+                const myTeam = game.teams[game.myTeamId];
+                const currentSalary = myTeam.roster.reduce((a,b)=>a+b.salary,0);
+                let capSpace = game.cap - currentSalary;
+                
+                if(cutId) {
+                    const p = game.players.find(x=>x.id===cutId);
+                    capSpace += p.salary;
+                }
+                const disp = document.getElementById('fa-cap-display');
+                disp.innerText = `$${capSpace}M`;
+                if(capSpace<0) disp.classList.add('neg'); else disp.classList.remove('neg');
+            };
+            cutSel.onchange(); 
+        }
+
+        function signFreeAgent(signId, salary) {
+            const cutId = document.getElementById('cut-select').value;
+            if(!cutId) { alert("You must select a player to cut!"); return; }
+            
+            const myTeam = game.teams[game.myTeamId];
+            const cutPlayer = game.players.find(x=>x.id===cutId);
+            
+            const currentSalary = myTeam.roster.reduce((a,b)=>a+b.salary,0);
+            const capSpaceAfterCut = (game.cap - currentSalary) + cutPlayer.salary;
+            
+            if(salary > capSpaceAfterCut) { alert("Not enough cap space!"); return; }
+
+            // CUT LOGIC -> LOCK
+            cutPlayer.teamId = null;
+            cutPlayer.contractYears = 0;
+            cutPlayer.isLocked = true; // Lock until next season
+            myTeam.roster = myTeam.roster.filter(p => p.id !== cutId);
+            
+            const signPlayer = game.players.find(x=>x.id === signId);
+            signPlayer.teamId = game.myTeamId;
+            signPlayer.contractYears = 1;
+            myTeam.roster.push(signPlayer);
+
+            addNews("Transaction", `You signed ${signPlayer.name} and released ${cutPlayer.name}.`, "FrontOffice", false);
+            document.getElementById('modal-fa').style.display = 'none';
+            updateDashboard();
+        }
+
+        // --- SEARCH FUNCTION ---
+        function searchPlayers() {
+            const query = document.getElementById('league-search').value.toLowerCase();
+            const resultBox = document.getElementById('search-results');
+            resultBox.innerHTML = '';
+
+            if(query.length < 2) {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            const hits = game.players.filter(p => p.name.toLowerCase().includes(query) && !p.retired);
+            
+            if(hits.length === 0) {
+                resultBox.innerHTML = '<div style="padding:10px; color:#666">No players found</div>';
+                resultBox.style.display = 'block';
+                return;
+            }
+
+            hits.forEach(p => {
+                let tName = p.teamId !== null ? game.teams[p.teamId].name : "Free Agent";
+                if(p.isLocked) tName += " (Locked)";
+                const div = document.createElement('div');
+                div.className = 'search-item';
+                div.innerHTML = `
+                    <div><span style="font-weight:bold; color:var(--text)">${p.name}</span> <span class="text-sm">(${tName})</span></div>
+                    <div class="ovr-badge ${p.ovr >= 80 ? 'ovr-80' : 'ovr-60'}">${p.ovr}</div>
+                `;
+                div.onclick = () => { showPlayer(p.id); resultBox.style.display = 'none'; };
+                resultBox.appendChild(div);
+            });
+            resultBox.style.display = 'block';
+        }
+
+        // --- HISTORY & HOF ---
+        function showFranchiseHistory() {
+            const rings = game.history.filter(h => h.result === "Champion").length;
+            let totalW = 0, totalL = 0;
+            game.history.forEach(h => {
+                let parts = h.record.split('-');
+                totalW += parseInt(parts[0]);
+                totalL += parseInt(parts[1]);
+            });
+            
+            document.getElementById('hist-rings').innerText = rings;
+            document.getElementById('hist-record').innerText = `${totalW}-${totalL}`;
+
+            const hofDiv = document.getElementById('hof-list');
+            hofDiv.innerHTML = '';
+            if(game.hallOfFame.length === 0) {
+                hofDiv.innerHTML = '<div class="text-sm" style="text-align:center; color:#666">No Inductees Yet</div>';
+            } else {
+                game.hallOfFame.forEach(id => {
+                    const p = game.players.find(x => x.id === id);
+                    if(p) {
+                         hofDiv.innerHTML += `
+                            <div class="flex-row" style="padding:5px 0; border-bottom:1px solid #333;">
+                                <div><span class="player-link" style="color:var(--gold)" onclick="showPlayer('${p.id}')">${p.name}</span><div class="text-sm">Ovr ${p.ovr}</div></div>
+                                <span class="text-sm">Prime: ${p.primeOvr}</span>
+                            </div>
+                         `;
+                    }
+                });
+            }
+
+            const tbody = document.getElementById('hist-table').querySelector('tbody');
+            tbody.innerHTML = '';
+            game.history.forEach(h => {
+                tbody.innerHTML += `<tr><td>S${h.season}</td><td style="color:${h.result==='Champion'?'var(--gold)':'var(--text)'}">${h.result}</td><td>${h.record}</td></tr>`;
+            });
+
+            showScreen('history');
+        }
+
+        function openActiveInduction() {
+            const list = document.getElementById('hof-active-list');
+            list.innerHTML = '';
+            const myRoster = game.teams[game.myTeamId].roster;
+            
+            myRoster.forEach(p => {
+                if(!game.hallOfFame.includes(p.id)) {
+                    const div = document.createElement('div');
+                    div.style.padding = '8px';
+                    div.style.borderBottom = '1px solid #333';
+                    div.style.display='flex'; div.style.justifyContent='space-between';
+                    div.innerHTML = `<span>${p.name}</span> <button class="btn btn-gold btn-sm" onclick="inductActive('${p.id}')">Induct</button>`;
+                    list.appendChild(div);
+                }
+            });
+            document.getElementById('modal-hof-select').style.display = 'flex';
+        }
+
+        function inductActive(id) {
+            game.hallOfFame.push(id);
+            document.getElementById('modal-hof-select').style.display = 'none';
+            const p = game.players.find(x => x.id === id);
+            addNews("Hall of Fame", `${p.name} has been inducted into the Franchise Hall of Fame!`, "Official", true, id);
+            showFranchiseHistory();
+        }
+
+        // --- UTILS ---
+        let currentPlayerId = null;
+
+        function showPlayer(id) {
+            currentPlayerId = id;
+            const p = game.players.find(x => x.id === id);
+            
+            // Set Colorful Header
+            const header = document.getElementById('mp-header');
+            if(p.teamId !== null) {
+                const colors = game.teams[p.teamId].colors;
+                document.getElementById('mp-team').innerText = game.teams[p.teamId].name;
+                header.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
+            } else {
+                let status = "Free Agent";
+                if(p.isLocked) status += " (Waiting for next season)";
+                document.getElementById('mp-team').innerText = status;
+                header.style.background = `linear-gradient(135deg, #374151, #111827)`;
+            }
+
+            document.getElementById('mp-name').innerText = p.name;
+            document.getElementById('mp-pos').innerText = p.pos;
+            document.getElementById('mp-age').innerText = p.age + (p.retired ? " (Ret)" : "");
+            document.getElementById('mp-ovr').innerText = p.ovr;
+            document.getElementById('mp-prime').innerText = p.primeOvr;
+            document.getElementById('mp-salary').innerText = `$${p.salary}M`;
+            document.getElementById('mp-years').innerText = p.contractYears + " Years Left";
+            document.getElementById('mp-high').innerText = p.careerHigh + " PTS";
+            
+            document.getElementById('mp-ppg').innerText = p.stats.gp ? (p.stats.pts/p.stats.gp).toFixed(1) : "0.0";
+            document.getElementById('mp-rpg').innerText = p.stats.gp ? (p.stats.reb/p.stats.gp).toFixed(1) : "0.0";
+            document.getElementById('mp-apg').innerText = p.stats.gp ? (p.stats.ast/p.stats.gp).toFixed(1) : "0.0";
+            let fg = p.stats.fga ? Math.floor((p.stats.fgm/p.stats.fga)*100) : 0;
+            document.getElementById('mp-fg').innerText = fg + "%";
+
+            if(p.awards.length > 0) {
+                document.getElementById('mp-awards-card').style.display = 'block';
+                document.getElementById('mp-awards').innerHTML = p.awards.map(a => `<span style="display:block; margin-bottom:2px;">🏆 ${a}</span>`).join('');
+            } else {
+                document.getElementById('mp-awards-card').style.display = 'none';
+            }
+
+            const statBody = document.getElementById('mp-stats-table').querySelector('tbody');
+            statBody.innerHTML = '';
+            if(p.history.length === 0) {
+                statBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777">No prior seasons</td></tr>';
+            } else {
+                p.history.forEach(h => {
+                    statBody.innerHTML += `<tr><td>S${h.season}</td><td>${h.team.split(' ')[0]}</td><td>${h.ppg}</td><td>${h.rpg}</td><td>${h.apg}</td></tr>`;
+                });
+            }
+
+            document.getElementById('modal-player').style.display = 'flex';
+        }
+
+        function closeModal(e) { if(e.target.className === 'modal') e.target.style.display = 'none'; }
+        function switchTab(t) {
+            ['roster','standings','news'].forEach(x=>document.getElementById('tab-'+x).style.display='none');
+            document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+            document.getElementById('tab-'+t).style.display='block';
+            event.target.classList.add('active');
+        }
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-'+id).classList.add('active');
+            window.scrollTo(0,0);
+        }
+
+        // --- SAVE/LOAD FIX ---
+        function saveGame(alertUser) { 
+            localStorage.setItem('hoopsim_fixed', JSON.stringify(game)); 
+            if(alertUser) alert("Game Saved Successfully");
+        }
+        
+        function loadGame() {
+            const data = localStorage.getItem('hoopsim_fixed');
+            if(!data) { 
+                document.getElementById('load-msg').innerText = "No save found!";
+                setTimeout(()=>document.getElementById('load-msg').innerText="", 2000);
+                return; 
+            }
+            
+            try {
+                const parsed = JSON.parse(data);
+                // Assign primitives
+                Object.assign(game, parsed);
+                
+                // Reconstruct Players to attach proto methods (though we mainly use data)
+                // Critical: We must use the 'parsed' players to overwrite game.players
+                game.players = parsed.players.map(pData => {
+                    let p = new Player(); 
+                    Object.assign(p, pData); 
+                    return p;
+                });
+
+                // RECONNECT TEAMS TO PLAYERS
+                // The saved 'teams' have rosters, but those are just copies of data.
+                // We need the team.roster to point to the actual objects in game.players
+                game.teams.forEach(t => {
+                    t.roster = game.players.filter(p => p.teamId === t.id);
+                });
+
+                updateDashboard();
+                showScreen('dashboard');
+            } catch(e) {
+                console.error(e);
+                alert("Save file corrupted or incompatible.");
+            }
+        }
+    </script>
+</body>
+</html>
