@@ -408,7 +408,7 @@
             { id: 4, name: "Honolulu Tide", colors: ["#3b82f6", "#1e40af"] }, 
             { id: 5, name: "Los Angeles Lions", colors: ["#7c3aed", "#fbbf24"] }, 
             { id: 6, name: "New York Nobles", colors: ["#d97706", "#1f2937"] }, 
-            { id: 7, name: "Pittsburg Panthers", colors: ["#4b5563", "#000000"] } 
+            { id: 7, name: "Detroit Panthers", colors: ["#4b5563", "#000000"] } 
         ];
         const F_NAMES = [
     "James", "Michael", "William", "David", "John", "Robert", "Christopher", "Matthew", "Joseph", "Daniel",
@@ -423,8 +423,7 @@ const L_NAMES = [
     "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson", "Garcia", "Martinez", "Robinson", "Clark",
     "Rodriguez", "Lewis", "Lee", "Walker", "Hall", "Allen", "Young", "Hernandez", "King", "Wright",
     "Lopez", "Hill", "Scott", "Green", "Adams", "Baker", "Gonzalez", "Nelson", "Carter", "Mitchell",
-    "Perez", "Roberts", "Turner", "Phillips", "Campbell", "Parker", "Evans", "Edwards", "Collins", "Stewart"
-];
+    "Perez", "Roberts", "Turner", "Phillips", "Campbell", "Parker", "Evans", "Edwards", "Collins", "Stewart"];
         const MONTHS = ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
         
         // --- GAME STATE ---
@@ -852,7 +851,9 @@ const L_NAMES = [
                     if(Math.random() > 0.5) t.wins++; else t.losses++;
                     t.roster.forEach(p => {
                         p.stats.gp++;
-                        p.stats.pts += Math.floor((p.ovr/3) + Math.random()*10);
+                        let pts = Math.floor((p.ovr/3) + Math.random()*10); // Calculate game points
+                        if(pts > p.careerHigh) p.careerHigh = pts; // FIX: Update Career High
+                        p.stats.pts += pts;
                         p.stats.reb += Math.floor(Math.random() * 8);
                         p.stats.ast += Math.floor(Math.random() * 5);
                         p.stats.fga += 15; p.stats.fgm += 7;
@@ -891,7 +892,7 @@ const L_NAMES = [
                 const hOvr = sim.home.roster.reduce((a,b)=>a+b.ovr,0)/5;
                 const aOvr = sim.away.roster.reduce((a,b)=>a+b.ovr,0)/5;
                 let homeAdvantage = (hOvr - aOvr) * 0.5;
-                let isHomePos = (Math.random() * 86) < (50 + homeAdvantage);
+                let isHomePos = (Math.random() * 100) < (50 + homeAdvantage);
 
                 const attTeam = isHomePos ? sim.home : sim.away;
                 const defTeam = isHomePos ? sim.away : sim.home;
