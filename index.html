@@ -892,7 +892,7 @@ const L_NAMES = [
                 const hOvr = sim.home.roster.reduce((a,b)=>a+b.ovr,0)/5;
                 const aOvr = sim.away.roster.reduce((a,b)=>a+b.ovr,0)/5;
                 let homeAdvantage = (hOvr - aOvr) * 0.5;
-                let isHomePos = (Math.random() * 100) < (50 + homeAdvantage);
+                let isHomePos = (Math.random() * 86) < (50 + homeAdvantage);
 
                 const attTeam = isHomePos ? sim.home : sim.away;
                 const defTeam = isHomePos ? sim.away : sim.home;
